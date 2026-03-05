@@ -14,7 +14,10 @@ import {
   Check, 
   Play, 
   Pause, 
-  Globe
+  Globe,
+  ZoomIn,
+  ZoomOut,
+  Maximize
 } from 'lucide-react';
 
 const SPEEDS = {
@@ -35,6 +38,7 @@ const BookViewer: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [uiVisible, setUiVisible] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [zoom, setZoom] = useState(1);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const uiTimeoutRef = useRef<number | null>(null);
@@ -188,6 +192,30 @@ const BookViewer: React.FC = () => {
             </button>
           ))}
         </div>
+
+        <div className="bg-[#0a0f14]/90 backdrop-blur-xl border border-white/10 p-2 rounded-full md:rounded-3xl shadow-2xl flex md:flex-col items-center gap-2">
+          <button 
+            onClick={() => setZoom(prev => Math.min(prev + 0.25, 3))}
+            className="w-10 h-10 flex items-center justify-center rounded-full md:rounded-xl hover:bg-white/5 text-slate-400"
+            title="Zoom In"
+          >
+            <ZoomIn size={18} />
+          </button>
+          <button 
+            onClick={() => setZoom(1)}
+            className="w-10 h-10 flex items-center justify-center rounded-full md:rounded-xl hover:bg-white/5 text-slate-400"
+            title="Reset Zoom"
+          >
+            <Maximize size={16} />
+          </button>
+          <button 
+            onClick={() => setZoom(prev => Math.max(prev - 0.25, 0.5))}
+            className="w-10 h-10 flex items-center justify-center rounded-full md:rounded-xl hover:bg-white/5 text-slate-400"
+            title="Zoom Out"
+          >
+            <ZoomOut size={18} />
+          </button>
+        </div>
       </aside>
 
       {/* 3. Immersive Tap Zones (Mobile Navigation) */}
@@ -227,12 +255,15 @@ const BookViewer: React.FC = () => {
       </div>
 
       {/* 5. Reading Environment */}
-      <main className="flex-1 w-full h-full flex items-center justify-center relative bg-[#020202]">
-        <div className={`relative flex items-center justify-center w-full h-full transition-all duration-500 transform ${isTransitioning ? 'scale-[0.98] opacity-20' : 'scale-100 opacity-100'}`}>
-           <div className="relative shadow-[0_0_100px_rgba(0,194,255,0.03)] rounded-sm overflow-hidden bg-white max-w-[95vw] max-h-[85vh] md:max-w-[85vw] md:max-h-[90vh]">
+      <main className="flex-1 w-full h-full relative bg-[#020202] overflow-auto no-scrollbar flex items-center justify-center p-8 md:p-12">
+        <div 
+          className={`relative transition-all duration-500 transform origin-center ${isTransitioning ? 'scale-[0.98] opacity-20' : 'opacity-100'}`}
+          style={{ transform: `scale(${zoom})` }}
+        >
+           <div className="relative shadow-[0_0_100px_rgba(0,194,255,0.15)] rounded-sm overflow-hidden bg-white">
             <canvas 
               ref={canvasRef} 
-              className="w-auto h-auto max-w-full max-h-full block object-contain"
+              className="block max-w-[90vw] max-h-[80vh] md:max-w-[none] md:max-h-[85vh] object-contain"
             />
             {currentPage > 1 && (
               <div className="absolute inset-y-0 left-0 w-8 md:w-12 bg-gradient-to-r from-black/10 to-transparent pointer-events-none" />

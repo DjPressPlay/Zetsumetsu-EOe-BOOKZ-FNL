@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { BookMetadata } from '../types';
+import { ChevronUp } from 'lucide-react';
 
 interface BookCardProps {
   book: BookMetadata;
@@ -38,14 +39,20 @@ const BookCard: React.FC<BookCardProps> = ({ book }) => {
           </Link>
           <Link to={`/author/${encodeURIComponent(book.author)}`}>
             <p className="text-[10px] text-slate-500 italic font-medium truncate mt-0.5 hover:text-[#00c2ff] transition-colors">
-              by {book.author}
+              NEURAL_ID: {book.author}
             </p>
           </Link>
           
-          <div className="flex gap-1 mt-3">
-            {[1,2,3,4,5].map(i => (
-              <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#00c2ff] shadow-[0_0_8px_rgba(0,194,255,0.8)]" />
-            ))}
+          <div className="flex justify-between items-center mt-3">
+            <div className="flex gap-1">
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#00c2ff] shadow-[0_0_8px_rgba(0,194,255,0.8)]" />
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <ChevronUp size={10} className="text-[#00c2ff]" />
+              <span className="text-[9px] font-black text-white">{book.upvotes || 0}</span>
+            </div>
           </div>
         </div>
       </div>

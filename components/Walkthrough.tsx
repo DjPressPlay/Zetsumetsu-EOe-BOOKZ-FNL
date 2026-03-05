@@ -5,7 +5,7 @@ import { X, ArrowRight, ArrowLeft, Target, Search, BookOpen, User } from 'lucide
 const STEPS = [
   {
     title: "WELCOME TO ZETSUMETSU EOe BOOKZ",
-    description: "You have accessed the core neural archives. This nexus transforms standard documentation into interactive digital artifacts.",
+    description: "Zetsumetsu EOe BOOKZ is the next generation of digital archiving. Expanding on the foundation of the Internet Archive, Zetsumetsu EOe BOOKZ continues the evolution. A high-fidelity digital archive that transforms static PDF documentation into interactive, shareable social-media-style landing pages.",
     icon: Target,
     target: "body",
   },
