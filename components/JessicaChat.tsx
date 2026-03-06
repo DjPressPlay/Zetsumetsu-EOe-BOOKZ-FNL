@@ -47,7 +47,7 @@ const JessicaChat: React.FC<JessicaChatProps> = ({ books }) => {
   useEffect(() => {
     if (books.length > 0 && !jessica) {
       try {
-        setJessica(new JessicaAI(books));
+        setJessica(new JessicaAI());
       } catch (err) {
         console.error("Failed to initialize Jessica AI:", err);
       }

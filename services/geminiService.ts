@@ -9,8 +9,8 @@ export const suggestGenres = async (title: string): Promise<string[]> => {
       body: JSON.stringify({ title }),
     });
 
-    const data = await response.json();
-    return data.genres || [];
+    if (!response.ok) throw new Error('Failed to fetch genre suggestions');
+    return await response.json();
   } catch (error) {
     console.error("JESSICA AI curation error:", error);
     return ["RAW DATA STREAMS"];

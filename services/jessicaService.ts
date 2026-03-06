@@ -1,39 +1,40 @@
 
-import { BookMetadata } from "../types";
-
 export interface JessicaMessage {
   role: "user" | "model";
   parts: { text: string }[];
 }
 
 export class JessicaAI {
-  private history: JessicaMessage[];
+  private history: JessicaMessage[] = [];
 
-  constructor(_books?: BookMetadata[]) {
-    this.history = [];
+  constructor() {
+    // History is managed locally now
   }
 
-  async sendMessage(message: string, userId: string, currentBookId?: string): Promise<string> {
-    const response = await fetch('/api/jessica-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message,
-        history: this.history,
-        userId,
-        currentBookId,
-      }),
-    });
+  async sendMessage(message: string, userId: string, currentBookId?: string) {
+    try {
+      const response = await fetch('/api/jessica-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          userId,
+          currentBookId,
+          history: this.history
+        }),
+      });
 
-    const data = await response.json();
+      if (!response.ok) throw new Error('Failed to fetch Jessica response');
+      const data = await response.json();
 
-    // Update local conversation history
-    this.history = data.history || [
-      ...this.history,
-      { role: "user", parts: [{ text: message }] },
-      { role: "model", parts: [{ text: data.text }] },
-    ];
+      // Update local history
+      this.history.push({ role: "user", parts: [{ text: message }] });
+      this.history.push({ role: "model", parts: [{ text: data.text }] });
 
-    return data.text;
+      return data.text;
+    } catch (error) {
+      console.error("Jessica AI error:", error);
+      throw error;
+    }
   }
 }

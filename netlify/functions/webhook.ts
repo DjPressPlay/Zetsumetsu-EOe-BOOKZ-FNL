@@ -1,28 +1,33 @@
+import { Handler } from "@netlify/functions";
 import Stripe from "stripe";
 import { updateUserCredits, updateUserPremium } from "../../services/db";
 
-export default async (req: Request) => {
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
+
+export const handler: Handler = async (event, context) => {
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-  const sig = req.headers.get("stripe-signature") || "";
-  const body = await req.text();
+  const sig = event.headers["stripe-signature"] as string;
+  let stripeEvent;
 
-  let event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
+    stripeEvent = stripe.webhooks.constructEvent(
+      event.body || "",
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET || ""
+      endpointSecret
     );
   } catch (err: any) {
-    return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+    return {
+      statusCode: 400,
+      body: `Webhook Error: ${err.message}`,
+    };
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
+  if (stripeEvent.type === "checkout.session.completed") {
+    const session = stripeEvent.data.object as Stripe.Checkout.Session;
     const { userId, type, amount } = session.metadata || {};
 
     if (userId && type) {
@@ -34,7 +39,8 @@ export default async (req: Request) => {
     }
   }
 
-  return new Response(JSON.stringify({ received: true }), {
-    headers: { "Content-Type": "application/json" },
-  });
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ received: true }),
+  };
 };
