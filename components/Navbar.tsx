@@ -4,9 +4,20 @@ import { Search, Info, X, Send, ChevronDown, Fingerprint, Cpu, Zap, FileText, Sp
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { processPdfForStore } from '../services/pdfService';
-import { saveBook } from '../services/db';
+import { saveBook, getUserUploadCount, getUserCredits } from '../services/db';
 import { suggestGenres } from '../services/geminiService';
 import { BookMetadata, BookData } from '../types';
+import { Crown } from 'lucide-react';
+import PricingModal from './PricingModal';
+
+const getDeviceId = () => {
+  let id = localStorage.getItem('zetsu_device_id');
+  if (!id) {
+    id = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem('zetsu_device_id', id);
+  }
+  return id;
+};
 
 interface NavbarProps {
   searchQuery?: string;
@@ -20,8 +31,10 @@ const CATEGORIES = [
 
 const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'uploading' | 'success' | 'error'>('idle');
   const [pdfInfo, setPdfInfo] = useState<any>(null);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
@@ -29,9 +42,26 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const [formData, setFormData] = useState({ title: '', author: '', genre: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch premium status
+  useEffect(() => {
+    const deviceId = getDeviceId();
+    getUserCredits(deviceId).then(data => setIsPremium(data.isPremium));
+  }, []);
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const deviceId = getDeviceId();
+    const { isPremium: premiumStatus } = await getUserCredits(deviceId);
+    const uploadCount = await getUserUploadCount(deviceId);
+    
+    if (!premiumStatus && uploadCount >= 5) {
+      setUploadStatus('error');
+      alert("OM_G! Your archival sector is full! 📚 You've reached the 5-book limit for free archivists. ✨ Upgrade to PREMIUM for unlimited uploads! 🚀");
+      return;
+    }
+
     setUploadStatus('processing');
     try {
       const info = await processPdfForStore(file);
@@ -74,6 +104,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
     
     setUploadStatus('uploading');
     try {
+      const deviceId = getDeviceId();
       const id = crypto.randomUUID().split('-')[0];
       const metadata: BookMetadata = {
         id,
@@ -87,7 +118,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
         upvotes: 0
       };
       const data: BookData = { id, pdfData: pdfInfo.pdfData };
-      await saveBook(metadata, data);
+      await saveBook(metadata, data, deviceId);
       setUploadStatus('success');
       
       // Refresh the page or trigger a global refresh
@@ -120,7 +151,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
             )}
             
             {/* Search Bar - Desktop & Mobile Toggle */}
-            <div className={`flex-1 max-w-xl mx-4 md:mx-12 ${isMobileSearchOpen ? 'block' : 'hidden md:block'}`} id="nav-search-container">
+            <div className={`flex-1 max-w-[180px] lg:max-w-[240px] mx-4 md:mx-8 ${isMobileSearchOpen ? 'block' : 'hidden md:block'}`} id="nav-search-container">
               <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00c2ff] transition-colors" size={16} />
                 <input 
@@ -158,6 +189,15 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                 </button>
                 
                 <div className="flex items-center gap-2 md:gap-4">
+                  {!isPremium && (
+                    <button 
+                      onClick={() => setIsPricingOpen(true)}
+                      className="hidden sm:flex px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_35px_rgba(168,85,247,0.6)] transition-all items-center gap-2 border border-white/10"
+                    >
+                      <Crown size={12} className="fill-white" />
+                      GO PREMIUM
+                    </button>
+                  )}
                   <button 
                     onClick={() => setIsRequestOpen(true)}
                     className="px-4 md:px-8 py-2.5 md:py-3 bg-[#00c2ff] text-black hover:bg-white text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center gap-2 rounded-full shadow-[0_0_25px_rgba(0,194,255,0.3)] hover:shadow-[0_0_45px_rgba(0,194,255,0.6)] active:scale-95 group"
@@ -437,6 +477,21 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                   </p>
                   
                   <div className="space-y-4">
+                    <p className="text-white font-black uppercase tracking-widest text-[9px] md:text-[10px]">Neural Companion:</p>
+                    <div className="p-4 bg-[#00c2ff]/5 border border-[#00c2ff]/10 rounded-2xl flex gap-4 items-center">
+                      <div className="w-12 h-12 rounded-full bg-[#00c2ff] flex items-center justify-center shadow-[0_0_20px_rgba(0,194,255,0.4)]">
+                        <Sparkles size={24} className="text-black" />
+                      </div>
+                      <div>
+                        <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">JESSICA AI (v2.6)</h4>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight leading-normal">
+                          The intelligence behind the Zetsu Network. Jessica manages the bitstreams, curates genres, and provides deep-parsing insights for every artifact. She is your guide through the digital void.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
                     <p className="text-white font-black uppercase tracking-widest text-[9px] md:text-[10px]">Current Protocols:</p>
                     <ul className="space-y-2 list-none">
                       <li className="flex gap-2">
@@ -449,7 +504,19 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       </li>
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
+                        <span><strong className="text-white">JESSICA AI:</strong> Your 2026-era neural companion. She manages the archives, curates genres, and provides deep-parsing insights.</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-purple-400 font-black">●</span>
+                        <span><strong className="text-white">NEURAL SHARDS:</strong> The energy source for advanced AI operations. Use shards for deep-parsing, synthesis, and priority momentum.</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-[#00c2ff] font-black">●</span>
                         <span><strong className="text-white">IDENTITY LOCK:</strong> Unique device and Neural ID signatures to ensure momentum integrity and prevent bitstream spam.</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-indigo-400 font-black">●</span>
+                        <span><strong className="text-white">PREMIUM ARCHIVIST:</strong> Unlock the full potential of the Zetsu Network. Unlimited uploads, priority bitstream placement, and exclusive AI synthesis nodes.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
@@ -494,6 +561,11 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
           </div>
         )}
       </AnimatePresence>
+      <PricingModal 
+        isOpen={isPricingOpen} 
+        onClose={() => setIsPricingOpen(false)} 
+        deviceId={getDeviceId()} 
+      />
     </>
   );
 };

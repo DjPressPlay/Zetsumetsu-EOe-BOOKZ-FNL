@@ -7,6 +7,7 @@ import BookCard from './components/BookCard';
 import SocialPage from './components/SocialPage';
 import BookViewer from './components/BookViewer';
 import AuthorPage from './components/AuthorPage';
+import JessicaChat from './components/JessicaChat';
 import Footer from './components/Footer';
 import Walkthrough from './components/Walkthrough';
 import { getAllMetadata, trackVisit, getNetworkStats, NetworkStats } from './services/db';
@@ -41,7 +42,15 @@ CREATE TABLE IF NOT EXISTS bookz (
   thumbnail TEXT NOT NULL,
   upload_date TIMESTAMPTZ DEFAULT NOW(),
   reads INTEGER DEFAULT 0,
-  upvotes INTEGER DEFAULT 0
+  upvotes INTEGER DEFAULT 0,
+  user_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS user_credits (
+  user_id TEXT PRIMARY KEY,
+  credits INTEGER DEFAULT 10,
+  is_premium BOOLEAN DEFAULT FALSE,
+  last_updated TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS comments (
@@ -371,6 +380,7 @@ const AppContent: React.FC = () => {
         <Route path="/read/:id" element={<BookViewer />} />
         <Route path="/author/:name" element={<AuthorPage />} />
       </Routes>
+      <JessicaChat books={books} />
     </div>
   );
 };

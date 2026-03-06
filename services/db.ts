@@ -15,7 +15,7 @@ const ensureClient = () => {
   return supabase;
 };
 
-export const saveBook = async (metadata: BookMetadata, data: BookData): Promise<void> => {
+export const saveBook = async (metadata: BookMetadata, data: BookData, userId: string): Promise<void> => {
   const supabase = ensureClient();
   
   const { error: storageError } = await supabase.storage
@@ -38,7 +38,8 @@ export const saveBook = async (metadata: BookMetadata, data: BookData): Promise<
       thumbnail: metadata.thumbnail,
       upload_date: new Date(metadata.uploadDate).toISOString(),
       reads: 0,
-      upvotes: 0
+      upvotes: 0,
+      user_id: userId
     }]);
 
   if (dbError) throw dbError;
@@ -273,4 +274,80 @@ export const getNetworkStats = async (books: BookMetadata[]): Promise<NetworkSta
     genres: uniqueGenres,
     pages: totalPages
   };
+};
+
+export const getUserCredits = async (userId: string): Promise<{ credits: number, isPremium: boolean }> => {
+  const supabase = getSupabase();
+  if (!supabase) return { credits: 0, isPremium: false };
+
+  const { data, error } = await supabase
+    .from('user_credits')
+    .select('credits, is_premium')
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    // If not found, create with default 10
+    if (error.code === 'PGRST116') {
+      await supabase.from('user_credits').insert([{ user_id: userId, credits: 10, is_premium: false }]);
+      return { credits: 10, isPremium: false };
+    }
+    return { credits: 0, isPremium: false };
+  }
+
+  return { credits: data.credits, isPremium: data.is_premium };
+};
+
+export const deductCredits = async (userId: string, amount: number): Promise<boolean> => {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  const { credits: current } = await getUserCredits(userId);
+  if (current < amount) return false;
+
+  const { error } = await supabase
+    .from('user_credits')
+    .update({ credits: current - amount })
+    .eq('user_id', userId);
+
+  return !error;
+};
+
+export const updateUserCredits = async (userId: string, amount: number): Promise<void> => {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { data: current } = await supabase
+    .from('user_credits')
+    .select('credits')
+    .eq('user_id', userId)
+    .single();
+
+  const newCredits = (current?.credits || 0) + amount;
+
+  await supabase
+    .from('user_credits')
+    .upsert({ user_id: userId, credits: newCredits, last_updated: new Date().toISOString() }, { onConflict: 'user_id' });
+};
+
+export const updateUserPremium = async (userId: string, isPremium: boolean): Promise<void> => {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  await supabase
+    .from('user_credits')
+    .upsert({ user_id: userId, is_premium: isPremium, last_updated: new Date().toISOString() }, { onConflict: 'user_id' });
+};
+
+export const getUserUploadCount = async (userId: string): Promise<number> => {
+  const supabase = getSupabase();
+  if (!supabase) return 0;
+
+  const { count, error } = await supabase
+    .from('bookz')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  if (error) return 0;
+  return count || 0;
 };
