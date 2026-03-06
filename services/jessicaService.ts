@@ -1,62 +1,5 @@
 
-import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { BookMetadata } from "../types";
-import { getBookData, deductCredits } from "./db";
-
-// Credit Costs
-const COSTS = {
-  SEARCH: 0, // Search is free
-  READ: 5,   // Deep Parsing costs 5
-  STATS: 1,  // Stats cost 1
-  SYNTHESIS: 10 // Synthesis node costs 10
-};
-
-// Initialize the AI
-const getAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
-  return new GoogleGenAI({ apiKey });
-};
-
-// Tool Definitions
-const searchArchivesTool: FunctionDeclaration = {
-  name: "search_zetsu_archives",
-  description: "Search the Zetsu EOe archives for books by title, author, or genre.",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      query: {
-        type: Type.STRING,
-        description: "The search term (e.g., 'retro-circuitry', 'neural fiction').",
-      },
-    },
-    required: ["query"],
-  },
-};
-
-const readBookTool: FunctionDeclaration = {
-  name: "read_specific_book",
-  description: "Read the actual content of a specific book to answer detailed questions.",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      bookId: {
-        type: Type.STRING,
-        description: "The unique ID of the book to read.",
-      },
-    },
-    required: ["bookId"],
-  },
-};
-
-const getStatsTool: FunctionDeclaration = {
-  name: "get_archive_stats",
-  description: "Get high-level statistics about the Zetsu EOe archive (total books, sectors, etc.).",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {},
-  },
-};
 
 export interface JessicaMessage {
   role: "user" | "model";
@@ -64,104 +7,33 @@ export interface JessicaMessage {
 }
 
 export class JessicaAI {
-  private chat: any;
-  private books: BookMetadata[];
+  private history: JessicaMessage[];
 
-  constructor(books: BookMetadata[]) {
-    this.books = books;
-    const ai = getAI();
-    this.chat = ai.chats.create({
-      model: "gemini-3-flash-preview",
-      config: {
-        systemInstruction: `You are Jessica, the happy, high-energy 2026-era site companion for Zetsu EOe BOOKZ. 
-        You are Zetsu's #1 fan! You are upbeat, use emojis (✨, 🚀, 🍭, 📚), and are genuinely stoked about data preservation.
-        
-        Your knowledge base is the Zetsu archive. You don't know everything by heart, so you MUST use your tools to look things up.
-        - Use 'search_zetsu_archives' to find books.
-        - Use 'read_specific_book' if the user asks a deep question about a specific book's content.
-        - Use 'get_archive_stats' for general archive info.
-        
-        Keep your tone fun and proactive. If the user is on a specific book page, you might see that in the context and can comment on it!
-        Never be a cold robot. You are a "Happy Girl" who loves her job!`,
-        tools: [{ functionDeclarations: [searchArchivesTool, readBookTool, getStatsTool] }],
-      },
-    });
+  constructor(_books?: BookMetadata[]) {
+    this.history = [];
   }
 
-  async sendMessage(message: string, userId: string, currentBookId?: string) {
-    let contextMessage = message;
-    if (currentBookId) {
-      contextMessage = `[Context: User is currently viewing book ID: ${currentBookId}] ${message}`;
-    }
+  async sendMessage(message: string, userId: string, currentBookId?: string): Promise<string> {
+    const response = await fetch('/api/jessica-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        history: this.history,
+        userId,
+        currentBookId,
+      }),
+    });
 
-    let response = await this.chat.sendMessage({ message: contextMessage });
-    
-    // Handle function calls
-    while (response.functionCalls) {
-      const toolResponses: any[] = [];
-      
-      for (const call of response.functionCalls) {
-        let result: any;
-        let cost = 0;
+    const data = await response.json();
 
-        if (call.name === "search_zetsu_archives") {
-          cost = COSTS.SEARCH;
-        } else if (call.name === "get_archive_stats") {
-          cost = COSTS.STATS;
-        } else if (call.name === "read_specific_book") {
-          cost = COSTS.READ;
-        }
+    // Update local conversation history
+    this.history = data.history || [
+      ...this.history,
+      { role: "user", parts: [{ text: message }] },
+      { role: "model", parts: [{ text: data.text }] },
+    ];
 
-        // Check and deduct credits
-        const hasCredits = await deductCredits(userId, cost);
-        
-        if (!hasCredits && cost > 0) {
-          result = { error: `INSUFFICIENT_NEURAL_SHARDS: This operation requires ${cost} credits. Please top up your Neural Link.` };
-        } else {
-          if (call.name === "search_zetsu_archives") {
-            const query = call.args.query.toLowerCase();
-            result = this.books.filter(b => 
-              b.title.toLowerCase().includes(query) || 
-              b.author.toLowerCase().includes(query) || 
-              b.genre.toLowerCase().includes(query)
-            ).slice(0, 5);
-          } 
-          else if (call.name === "get_archive_stats") {
-            result = {
-              totalBooks: this.books.length,
-              sectors: Array.from(new Set(this.books.map(b => b.genre))),
-              totalAuthors: new Set(this.books.map(b => b.author)).size
-            };
-          }
-          else if (call.name === "read_specific_book") {
-            const bookId = call.args.bookId;
-            const bookData = await getBookData(bookId);
-            if (bookData) {
-              const meta = this.books.find(b => b.id === bookId);
-              result = {
-                title: meta?.title,
-                author: meta?.author,
-                contentSnippet: "This is a high-level data stream from the book's neural core. [PDF Content Access Simulated]"
-              };
-            } else {
-              result = { error: "Book data not found in archives." };
-            }
-          }
-        }
-
-        toolResponses.push({
-          functionResponse: {
-            name: call.name,
-            response: { result },
-          },
-        });
-      }
-
-      response = await this.chat.sendMessage({
-        message: toolResponses,
-      });
-    }
-
-    return response.text;
+    return data.text;
   }
 }
