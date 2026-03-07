@@ -13,19 +13,7 @@ export const handler: Handler = async (event, context) => {
   try {
     let line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
 
-    if (type === 'shards') {
-      line_items = [{
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: `${amount} Neural Shards`,
-            description: 'Energy source for advanced AI operations.',
-          },
-          unit_amount: Math.max(500, (parseInt(amount) / 10) * 100),
-        },
-        quantity: 1,
-      }];
-    } else if (type === 'premium') {
+    if (type === 'premium') {
       line_items = [{
         price_data: {
           currency: 'usd',
@@ -37,6 +25,8 @@ export const handler: Handler = async (event, context) => {
         },
         quantity: 1,
       }];
+    } else {
+      return { statusCode: 400, body: "Invalid payment type" };
     }
 
     const session = await stripe.checkout.sessions.create({

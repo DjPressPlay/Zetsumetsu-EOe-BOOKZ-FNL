@@ -70,7 +70,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       setFormData(prev => ({ ...prev, title: initialTitle }));
       setUploadStatus('idle');
       
-      // Trigger JESSICA AI immediately on file select
+      // Trigger AI curation immediately on file select
       curateGenres(initialTitle);
     } catch (err) {
       setUploadStatus('error');
@@ -245,7 +245,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                     <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-2">Archival Sync</h2>
                     <div className="h-1 w-12 bg-[#00c2ff]" />
                     <p className="mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                      Direct upload protocol powered by JESSICA AI.
+                      Direct upload protocol powered by AI.
                     </p>
                   </div>
 
@@ -281,7 +281,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       <div>
                         <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">02. AI Curation</h4>
                         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tight leading-normal">
-                          JESSICA AI will analyze your title and suggest the most relevant Genre Sectors.
+                          The system will analyze your title and suggest the most relevant Genre Sectors.
                         </p>
                       </div>
                     </div>
@@ -435,7 +435,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                               <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-[#00c2ff] pointer-events-none" size={16} />
                             </div>
                             <p className="text-[7px] text-[#00c2ff]/60 font-bold uppercase tracking-widest mt-2 flex items-center gap-1">
-                              <Sparkles size={8} /> JESSICA AI Curated Suggestions
+                              <Sparkles size={8} /> AI Curated Suggestions
                             </p>
                           </div>
                         </div>
@@ -477,21 +477,6 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                   </p>
                   
                   <div className="space-y-4">
-                    <p className="text-white font-black uppercase tracking-widest text-[9px] md:text-[10px]">Neural Companion:</p>
-                    <div className="p-4 bg-[#00c2ff]/5 border border-[#00c2ff]/10 rounded-2xl flex gap-4 items-center">
-                      <div className="w-12 h-12 rounded-full bg-[#00c2ff] flex items-center justify-center shadow-[0_0_20px_rgba(0,194,255,0.4)]">
-                        <Sparkles size={24} className="text-black" />
-                      </div>
-                      <div>
-                        <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">JESSICA AI (v2.6)</h4>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight leading-normal">
-                          The intelligence behind the Zetsu Network. Jessica manages the bitstreams, curates genres, and provides deep-parsing insights for every artifact. She is your guide through the digital void.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
                     <p className="text-white font-black uppercase tracking-widest text-[9px] md:text-[10px]">Current Protocols:</p>
                     <ul className="space-y-2 list-none">
                       <li className="flex gap-2">
@@ -501,10 +486,6 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
                         <span><strong className="text-white">DISCOURSE NODES:</strong> Threaded technical critiques and archival notes for every artifact on the network.</span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">JESSICA AI:</strong> Your 2026-era neural companion. She manages the archives, curates genres, and provides deep-parsing insights.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-purple-400 font-black">●</span>

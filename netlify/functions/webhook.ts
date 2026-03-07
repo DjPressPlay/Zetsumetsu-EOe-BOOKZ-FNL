@@ -31,9 +31,7 @@ export const handler: Handler = async (event, context) => {
     const { userId, type, amount } = session.metadata || {};
 
     if (userId && type) {
-      if (type === "shards" && amount) {
-        await updateUserCredits(userId, parseInt(amount));
-      } else if (type === "premium") {
+      if (type === "premium") {
         await updateUserPremium(userId, true);
       }
     }

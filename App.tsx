@@ -7,7 +7,6 @@ import BookCard from './components/BookCard';
 import SocialPage from './components/SocialPage';
 import BookViewer from './components/BookViewer';
 import AuthorPage from './components/AuthorPage';
-import JessicaChat from './components/JessicaChat';
 import Footer from './components/Footer';
 import Walkthrough from './components/Walkthrough';
 import { getAllMetadata, trackVisit, getNetworkStats, NetworkStats } from './services/db';
@@ -380,7 +379,6 @@ const AppContent: React.FC = () => {
         <Route path="/read/:id" element={<BookViewer />} />
         <Route path="/author/:name" element={<AuthorPage />} />
       </Routes>
-      <JessicaChat books={books} />
     </div>
   );
 };

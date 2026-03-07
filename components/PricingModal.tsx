@@ -10,12 +10,12 @@ interface PricingModalProps {
 }
 
 const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, deviceId }) => {
-  const handleCheckout = async (type: 'premium' | 'shards', amount?: number) => {
+  const handleCheckout = async (type: 'premium') => {
     try {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: deviceId, type, amount })
+        body: JSON.stringify({ userId: deviceId, type })
       });
       const { url } = await response.json();
       if (url) window.location.href = url;
@@ -54,9 +54,9 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, deviceId }
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em]">Select your archival upgrade protocol</p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-8">
+              <div className="flex justify-center">
                 {/* Premium Plan */}
-                <div className="relative group">
+                <div className="relative group max-w-md w-full">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
                   <div className="relative bg-black border border-white/10 rounded-[2rem] p-8 h-full flex flex-col">
                     <div className="flex justify-between items-start mb-6">
@@ -94,49 +94,6 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, deviceId }
                       className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black uppercase tracking-[0.2em] rounded-2xl shadow-lg hover:shadow-purple-500/20 transition-all active:scale-[0.98]"
                     >
                       UPGRADE NOW
-                    </button>
-                  </div>
-                </div>
-
-                {/* Shards Pack */}
-                <div className="relative group">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-[#00c2ff] to-blue-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-                  <div className="relative bg-black border border-white/10 rounded-[2rem] p-8 h-full flex flex-col">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="p-3 bg-[#00c2ff]/10 rounded-2xl border border-[#00c2ff]/20">
-                        <Zap className="text-[#00c2ff]" size={24} />
-                      </div>
-                      <div className="text-right">
-                        <span className="text-3xl font-black text-white">$5.00</span>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Neural Fuel</p>
-                      </div>
-                    </div>
-
-                    <h3 className="text-xl font-black text-white uppercase italic mb-4">50 AI CREDITS</h3>
-                    <p className="text-xs text-slate-400 mb-8 leading-relaxed">
-                      Power your AI assistant. Use credits to search, read, and analyze the archives.
-                    </p>
-
-                    <ul className="space-y-4 mb-10 flex-1">
-                      {[
-                        "50 AI SEARCH & ANALYSIS CREDITS",
-                        "SEARCH ARCHIVES WITH AI",
-                        "HAVE AI READ & EXPLAIN BOOKS",
-                        "BOOST YOUR BOOK'S RANKING",
-                        "GENERATE DEEP AI INSIGHTS"
-                      ].map((feature, i) => (
-                        <li key={i} className="flex items-center gap-3 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
-                          <Check size={14} className="text-[#00c2ff]" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-
-                    <button 
-                      onClick={() => handleCheckout('shards', 50)}
-                      className="w-full py-4 bg-[#00c2ff] text-black font-black uppercase tracking-[0.2em] rounded-2xl shadow-lg hover:shadow-[#00c2ff]/20 transition-all active:scale-[0.98]"
-                    >
-                      ACQUIRE CREDITS
                     </button>
                   </div>
                 </div>
