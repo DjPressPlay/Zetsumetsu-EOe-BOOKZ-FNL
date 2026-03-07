@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Check, Sparkles, Mail, Trophy, Zap, Star, Award, TrendingUp } from 'lucide-react';
+import { Send, Check, Sparkles, Mail, Trophy, Zap, Star, Award, TrendingUp, BookOpen, ArrowRight } from 'lucide-react';
 import { subscribeToNewsletter } from '../services/db';
 
 const PROMO_BADGES = [
@@ -130,6 +130,22 @@ const NewsletterCTA: React.FC = () => {
                 )}
               </AnimatePresence>
             </form>
+
+            <div className="mt-12 pt-12 border-t border-white/5 w-full">
+              <button 
+                onClick={() => window.open('https://www.skool.com/zetsuedu-7521/about', '_blank')}
+                className="group relative inline-flex items-center gap-3 px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all hover:scale-105 active:scale-95"
+              >
+                <div className="p-2 bg-[#00c2ff]/10 rounded-lg text-[#00c2ff] group-hover:scale-110 transition-transform">
+                  <BookOpen size={20} />
+                </div>
+                <div className="text-left">
+                  <span className="block text-[10px] font-black text-white uppercase tracking-[0.2em]">Join Zetsu EDU</span>
+                  <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-widest">Master the Archival Arts</span>
+                </div>
+                <ArrowRight size={16} className="ml-4 text-slate-600 group-hover:text-[#00c2ff] group-hover:translate-x-1 transition-all" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
