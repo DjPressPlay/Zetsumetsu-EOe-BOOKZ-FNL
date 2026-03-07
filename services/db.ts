@@ -298,6 +298,38 @@ export const getUserCredits = async (userId: string): Promise<{ credits: number,
   return { credits: data.credits, isPremium: data.is_premium };
 };
 
+export const deductCredits = async (userId: string, amount: number): Promise<boolean> => {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  const { credits: current } = await getUserCredits(userId);
+  if (current < amount) return false;
+
+  const { error } = await supabase
+    .from('user_credits')
+    .update({ credits: current - amount })
+    .eq('user_id', userId);
+
+  return !error;
+};
+
+export const updateUserCredits = async (userId: string, amount: number): Promise<void> => {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { data: current } = await supabase
+    .from('user_credits')
+    .select('credits')
+    .eq('user_id', userId)
+    .single();
+
+  const newCredits = (current?.credits || 0) + amount;
+
+  await supabase
+    .from('user_credits')
+    .upsert({ user_id: userId, credits: newCredits, last_updated: new Date().toISOString() }, { onConflict: 'user_id' });
+};
+
 export const updateUserPremium = async (userId: string, isPremium: boolean): Promise<void> => {
   const supabase = getSupabase();
   if (!supabase) return;
@@ -318,4 +350,35 @@ export const getUserUploadCount = async (userId: string): Promise<number> => {
 
   if (error) return 0;
   return count || 0;
+};
+
+export const subscribeToNewsletter = async (email: string): Promise<void> => {
+  const supabase = ensureClient();
+  const { error } = await supabase
+    .from('newsletter_emails')
+    .insert([{ email }]);
+  
+  if (error) {
+    if (error.code === '23505') return; // Ignore duplicate emails
+    if (error.message?.includes('does not exist')) {
+      window.dispatchEvent(new CustomEvent('show-setup-guide'));
+    }
+    throw error;
+  }
+};
+
+export const getNewsletterEmails = async (): Promise<{ email: string, signup_date: string }[]> => {
+  const supabase = ensureClient();
+  const { data, error } = await supabase
+    .from('newsletter_emails')
+    .select('*')
+    .order('signup_date', { ascending: false });
+    
+  if (error) {
+    if (error.message?.includes('does not exist')) {
+      window.dispatchEvent(new CustomEvent('show-setup-guide'));
+    }
+    throw error;
+  }
+  return data || [];
 };

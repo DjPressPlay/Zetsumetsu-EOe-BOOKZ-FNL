@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /archive
+Disallow: /admin/
+
+Sitemap: https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/sitemap.xml

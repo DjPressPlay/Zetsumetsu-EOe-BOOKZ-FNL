@@ -78,7 +78,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, deviceId }
                       {[
                         "UPLOAD UNLIMITED BOOKS",
                         "FEATURED IN THE FEED",
-                        "ADVANCED AI FEATURES",
+                        "PRIORITY SUPPORT",
                         "VERIFIED ARCHIVIST BADGE",
                         "EARLY ACCESS TO NEW FEATURES"
                       ].map((feature, i) => (

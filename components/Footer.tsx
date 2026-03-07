@@ -1,5 +1,7 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { Database } from 'lucide-react';
 
 const Footer: React.FC = () => {
   const openUpload = () => {
@@ -23,11 +25,11 @@ const Footer: React.FC = () => {
         </p>
         
         <div className="pt-12 flex justify-center">
-          {/* Centered Upload Dot - Reduced size for discretion */}
-          <button 
-            onClick={openUpload}
+          {/* Single Discreet Dot - Opens the Storage Page */}
+          <Link 
+            to="/archive"
             className="w-1 h-1 bg-white rounded-full opacity-10 hover:opacity-100 transition-opacity"
-            aria-label="Upload"
+            aria-label="Archive"
           />
         </div>
       </div>

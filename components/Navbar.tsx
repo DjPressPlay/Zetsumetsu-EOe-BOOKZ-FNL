@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { processPdfForStore } from '../services/pdfService';
 import { saveBook, getUserUploadCount, getUserCredits } from '../services/db';
-import { suggestGenres } from '../services/geminiService';
 import { BookMetadata, BookData } from '../types';
 import { Crown } from 'lucide-react';
 import PricingModal from './PricingModal';
@@ -37,8 +36,6 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const [isPremium, setIsPremium] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'uploading' | 'success' | 'error'>('idle');
   const [pdfInfo, setPdfInfo] = useState<any>(null);
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
-  const [isAiCurating, setIsAiCurating] = useState(false);
   const [formData, setFormData] = useState({ title: '', author: '', genre: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -69,34 +66,10 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       const initialTitle = file.name.replace('.pdf', '');
       setFormData(prev => ({ ...prev, title: initialTitle }));
       setUploadStatus('idle');
-      
-      // Trigger AI curation immediately on file select
-      curateGenres(initialTitle);
     } catch (err) {
       setUploadStatus('error');
     }
   };
-
-  const curateGenres = async (title: string) => {
-    if (!title || title.length < 3) return;
-    setIsAiCurating(true);
-    const suggestions = await suggestGenres(title);
-    setAiSuggestions(suggestions);
-    if (suggestions.length > 0 && !formData.genre) {
-      setFormData(prev => ({ ...prev, genre: suggestions[0] }));
-    }
-    setIsAiCurating(false);
-  };
-
-  // Debounce AI curation
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (formData.title && pdfInfo) {
-        curateGenres(formData.title);
-      }
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [formData.title]);
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,7 +218,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                     <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-2">Archival Sync</h2>
                     <div className="h-1 w-12 bg-[#00c2ff]" />
                     <p className="mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                      Direct upload protocol powered by AI.
+                      Upload your books directly to the Zetsu network.
                     </p>
                   </div>
 
@@ -257,7 +230,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       <div>
                         <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">01. Select Artifact</h4>
                         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tight leading-normal">
-                          Upload your PDF directly to the Zetsu network. No manual review required.
+                          Upload your PDF directly. It will be added to the public library instantly.
                         </p>
                       </div>
                     </div>
@@ -269,7 +242,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       <div>
                         <h4 className="text-[11px] font-black text-[#00c2ff] uppercase tracking-wider mb-1">CRITICAL: PAGE_01 COVER</h4>
                         <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight leading-normal">
-                          The PDF must have the book cover on the first page for neural thumbnail generation.
+                          The first page of your PDF must be the book cover for the thumbnail to look correct.
                         </p>
                       </div>
                     </div>
@@ -279,9 +252,9 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         <Sparkles size={18} />
                       </div>
                       <div>
-                        <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">02. AI Curation</h4>
+                        <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">02. Categorization</h4>
                         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tight leading-normal">
-                          The system will analyze your title and suggest the most relevant Genre Sectors.
+                          Choose the best genre sector for your book to help others find it.
                         </p>
                       </div>
                     </div>
@@ -293,7 +266,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       <div>
                         <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">03. Global Deployment</h4>
                         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tight leading-normal">
-                          Your archive becomes a permanent node on the Zetsumetsu network instantly.
+                          Your book becomes a permanent part of the Zetsumetsu library.
                         </p>
                       </div>
                     </div>
@@ -408,7 +381,6 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                           <div className="space-y-1">
                             <div className="flex justify-between items-center mb-1">
                               <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Genre Sector</label>
-                              {isAiCurating && <Loader2 size={10} className="text-[#00c2ff] animate-spin" />}
                             </div>
                             <div className="relative">
                               <select
@@ -418,25 +390,14 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                                 className="w-full bg-black border border-white/10 py-4 px-6 rounded-2xl text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all appearance-none uppercase cursor-pointer"
                               >
                                 <option value="" disabled>Select Sector</option>
-                                {aiSuggestions.length > 0 ? (
-                                  aiSuggestions.map((cat) => (
-                                    <option key={cat} value={cat} className="bg-[#0a0a0a] text-white">
-                                      {cat}
-                                    </option>
-                                  ))
-                                ) : (
-                                  CATEGORIES.map((cat) => (
-                                    <option key={cat} value={cat} className="bg-[#0a0a0a] text-white">
-                                      {cat}
-                                    </option>
-                                  ))
-                                )}
+                                {CATEGORIES.map((cat) => (
+                                  <option key={cat} value={cat} className="bg-[#0a0a0a] text-white">
+                                    {cat}
+                                  </option>
+                                ))}
                               </select>
                               <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-[#00c2ff] pointer-events-none" size={16} />
                             </div>
-                            <p className="text-[7px] text-[#00c2ff]/60 font-bold uppercase tracking-widest mt-2 flex items-center gap-1">
-                              <Sparkles size={8} /> AI Curated Suggestions
-                            </p>
                           </div>
                         </div>
                         <button type="submit" className="w-full bg-[#00c2ff] text-black py-4 rounded-2xl font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-[0_0_30px_rgba(0,194,255,0.2)] mt-4">
@@ -473,61 +434,57 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                 <div className="h-1 w-20 md:w-24 bg-[#00c2ff] mt-2 md:mt-4 mb-6 md:mb-8" />
                 <div className="space-y-6 text-slate-400 text-xs md:text-sm leading-relaxed mb-8 md:mb-12">
                   <p>
-                    Zetsumetsu EOe BOOKZ is the next generation of digital archiving. Expanding on the foundation of the Internet Archive, Zetsumetsu EOe BOOKZ continues the evolution. A high-fidelity digital archive that transforms static PDF documentation into interactive, shareable social-media-style landing pages.
+                    Zetsumetsu EOe BOOKZ is a modern digital library. We take static PDF books and turn them into beautiful, interactive pages that are easy to read and share. Our goal is to preserve knowledge in a way that feels fresh and accessible.
                   </p>
                   
                   <div className="space-y-4">
-                    <p className="text-white font-black uppercase tracking-widest text-[9px] md:text-[10px]">Current Protocols:</p>
+                    <p className="text-white font-black uppercase tracking-widest text-[9px] md:text-[10px]">How it works:</p>
                     <ul className="space-y-2 list-none">
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">NEURAL MOMENTUM:</strong> A Product Hunt-style meritocracy ranking the most valuable bitstreams in real-time.</span>
+                        <span><strong className="text-white">COMMUNITY RANKING:</strong> Users vote on the best books, bringing the most valuable content to the top of the feed.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">DISCOURSE NODES:</strong> Threaded technical critiques and archival notes for every artifact on the network.</span>
+                        <span><strong className="text-white">OPEN DISCOURSE:</strong> Every book has a comment section for discussion, critiques, and shared notes.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-purple-400 font-black">●</span>
-                        <span><strong className="text-white">AI CREDITS:</strong> The energy for your AI assistant. Use credits to search the archives, have the AI read books for you, and boost your rankings.</span>
+                        <span><strong className="text-white">CREDIT SYSTEM:</strong> Use your daily credits to interact with the library, boost your favorite books, and search the archives.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">IDENTITY LOCK:</strong> Unique device and Neural ID signatures to ensure momentum integrity and prevent bitstream spam.</span>
+                        <span><strong className="text-white">SECURE IDENTITY:</strong> Your unique ID ensures that the ranking system stays fair and free from spam.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-indigo-400 font-black">●</span>
-                        <span><strong className="text-white">PREMIUM ARCHIVIST:</strong> Unlock everything. Upload unlimited books, get featured in the feed, and access advanced AI features.</span>
+                        <span><strong className="text-white">PREMIUM ACCESS:</strong> Upgrade to upload unlimited books, get featured in the main feed, and unlock advanced library tools.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">ARCHIVAL METRICS:</strong> Real-time tracking of "Reads" and "Momentum" to measure the impact of every node.</span>
+                        <span><strong className="text-white">READ METRICS:</strong> We track how many people are reading each book to show its impact on the community.</span>
                       </li>
                     </ul>
                   </div>
 
                   <div className="space-y-4">
-                    <p className="text-white font-black uppercase tracking-widest text-[9px] md:text-[10px]">The Zetsu Roadmap:</p>
+                    <p className="text-white font-black uppercase tracking-widest text-[9px] md:text-[10px]">Future Updates:</p>
                     <ul className="space-y-2 list-none opacity-60">
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">NEURAL DEPTH:</strong> Full-text indexing and OCR for deep-bitstream search.</span>
+                        <span><strong className="text-white">DEEP SEARCH:</strong> Searching through the actual text inside every book in the library.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">MEDIA DIVERSITY:</strong> Expanding beyond PDFs into Audio Nodes and Neural Emulation.</span>
+                        <span><strong className="text-white">AUDIO BOOKS:</strong> Adding support for audio versions and voice-narrated nodes.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">TEMPORAL ARCHIVING:</strong> Preserving the evolution of data across the Wayback Protocol.</span>
+                        <span><strong className="text-white">VERSION HISTORY:</strong> Tracking how data and documents change over time.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">BIBLIOGRAPHIC PRECISION:</strong> Deep metadata schemas for academic-grade cross-referencing.</span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">COLLABORATIVE CURATION:</strong> Enabling Neural IDs to build and share private research dossiers.</span>
+                        <span><strong className="text-white">PRIVATE COLLECTIONS:</strong> Create your own private folders to organize your research.</span>
                       </li>
                     </ul>
                   </div>

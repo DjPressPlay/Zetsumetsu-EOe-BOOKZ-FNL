@@ -2,7 +2,6 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import { handler as createCheckoutHandler } from "./netlify/functions/create-checkout-session";
 import { handler as webhookHandler } from "./netlify/functions/webhook";
-import { handler as suggestGenresHandler } from "./netlify/functions/suggest-genres";
 
 async function startServer() {
   const app = express();
@@ -36,7 +35,6 @@ async function startServer() {
   // API Routes
   app.post("/api/create-checkout-session", bridge(createCheckoutHandler));
   app.post("/api/webhook", bridge(webhookHandler));
-  app.post("/api/suggest-genres", bridge(suggestGenresHandler));
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
