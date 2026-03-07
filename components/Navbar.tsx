@@ -508,7 +508,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       </li>
                       <li className="flex gap-2">
                         <span className="text-purple-400 font-black">●</span>
-                        <span><strong className="text-white">NEURAL SHARDS:</strong> The energy source for advanced AI operations. Use shards for deep-parsing, synthesis, and priority momentum.</span>
+                        <span><strong className="text-white">AI CREDITS:</strong> The energy for your AI assistant. Use credits to search the archives, have the AI read books for you, and boost your rankings.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>
@@ -516,7 +516,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       </li>
                       <li className="flex gap-2">
                         <span className="text-indigo-400 font-black">●</span>
-                        <span><strong className="text-white">PREMIUM ARCHIVIST:</strong> Unlock the full potential of the Zetsu Network. Unlimited uploads, priority bitstream placement, and exclusive AI synthesis nodes.</span>
+                        <span><strong className="text-white">PREMIUM ARCHIVIST:</strong> Unlock everything. Upload unlimited books, get featured in the feed, and access advanced AI features.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="text-[#00c2ff] font-black">●</span>

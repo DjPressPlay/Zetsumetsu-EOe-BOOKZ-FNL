@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MessageSquare, Send, X, Sparkles, User, Bot, Minus, Maximize2, Zap } from 'lucide-react';
+import { MessageSquare, Send, X, Sparkles, User, Bot, Minus, Maximize2, Zap, Search } from 'lucide-react';
 import { BookMetadata } from '../types';
 import { JessicaAI } from '../services/jessicaService';
 import { useParams, useLocation } from 'react-router-dom';
@@ -27,6 +27,7 @@ const JessicaChat: React.FC<JessicaChatProps> = ({ books }) => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [activeProtocol, setActiveProtocol] = useState<'idle' | 'scanning' | 'summarizing' | 'boosting'>('idle');
   const [credits, setCredits] = useState<number | null>(null);
   const [isPremium, setIsPremium] = useState(false);
   const [jessica, setJessica] = useState<JessicaAI | null>(null);
@@ -93,6 +94,59 @@ const JessicaChat: React.FC<JessicaChatProps> = ({ books }) => {
       setMessages(prev => [...prev, { role: 'jessica', text: "Oh no! My neural link glitched! Can we try that again? ✨", timestamp: Date.now() }]);
     } finally {
       setIsLoading(false);
+      setActiveProtocol('idle');
+    }
+  };
+
+  const activateProtocol = async (protocol: 'scanning' | 'summarizing' | 'boosting') => {
+    if (isLoading || !jessica) return;
+    
+    const deviceId = getDeviceId();
+    const { credits: currentCredits } = await getUserCredits(deviceId);
+    
+    const costs = {
+      scanning: 5,
+      summarizing: 10,
+      boosting: 5
+    };
+
+    if (currentCredits < costs[protocol]) {
+      setMessages(prev => [...prev, { 
+        role: 'jessica', 
+        text: `Oopsy! You need ${costs[protocol]} credits to engage this protocol. [TOP_UP] to continue! ✨`, 
+        timestamp: Date.now() 
+      }]);
+      setIsPricingOpen(true);
+      return;
+    }
+
+    setActiveProtocol(protocol);
+    setIsLoading(true);
+
+    let command = "";
+    if (protocol === 'scanning') command = "/search_archives";
+    if (protocol === 'summarizing') command = "/summarize_current";
+    if (protocol === 'boosting') command = "/boost_momentum";
+
+    setMessages(prev => [...prev, { 
+      role: 'user', 
+      text: `[ENGAGING_PROTOCOL: ${protocol.toUpperCase()}]`, 
+      timestamp: Date.now() 
+    }]);
+
+    try {
+      const response = await jessica.sendMessage(command, deviceId, currentBookId);
+      setMessages(prev => [...prev, { role: 'jessica', text: response || "Protocol execution failed. Bitstream unstable.", timestamp: Date.now() }]);
+      
+      getUserCredits(deviceId).then(data => {
+        setCredits(data.credits);
+        setIsPremium(data.isPremium);
+      });
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'jessica', text: "Neural link severed during execution. Protocol aborted.", timestamp: Date.now() }]);
+    } finally {
+      setIsLoading(false);
+      setActiveProtocol('idle');
     }
   };
 
@@ -110,10 +164,20 @@ const JessicaChat: React.FC<JessicaChatProps> = ({ books }) => {
               width: '350px'
             }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
-            className="bg-[#0a0a0a] border border-[#00c2ff]/30 rounded-3xl shadow-[0_0_50px_rgba(0,194,255,0.2)] overflow-hidden flex flex-col mb-4"
+            className={`bg-[#0a0a0a] border rounded-3xl shadow-[0_0_50px_rgba(0,194,255,0.2)] overflow-hidden flex flex-col mb-4 transition-colors duration-500 ${
+              activeProtocol === 'scanning' ? 'border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.2)]' :
+              activeProtocol === 'summarizing' ? 'border-purple-500/50 shadow-[0_0_50px_rgba(168,85,247,0.2)]' :
+              activeProtocol === 'boosting' ? 'border-orange-500/50 shadow-[0_0_50_rgba(249,115,22,0.2)]' :
+              'border-[#00c2ff]/30'
+            }`}
           >
             {/* Header */}
-            <div className="p-4 bg-gradient-to-r from-[#00c2ff]/20 to-transparent border-b border-white/5 flex justify-between items-center">
+            <div className={`p-4 border-b border-white/5 flex justify-between items-center transition-colors duration-500 ${
+              activeProtocol === 'scanning' ? 'bg-emerald-500/10' :
+              activeProtocol === 'summarizing' ? 'bg-purple-500/10' :
+              activeProtocol === 'boosting' ? 'bg-orange-500/10' :
+              'bg-gradient-to-r from-[#00c2ff]/20 to-transparent'
+            }`}>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-[#00c2ff] flex items-center justify-center shadow-[0_0_15px_rgba(0,194,255,0.5)]">
                   <Sparkles size={16} className="text-black" />
@@ -129,7 +193,7 @@ const JessicaChat: React.FC<JessicaChatProps> = ({ books }) => {
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-500/10 rounded-md border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
                           <Zap size={8} className="text-purple-400 fill-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.8)]" />
-                          <span className="text-[8px] font-black text-purple-400 uppercase tracking-tighter drop-shadow-[0_0_5px_rgba(168,85,247,0.8)]">{credits} SHARDS</span>
+                          <span className="text-[8px] font-black text-purple-400 uppercase tracking-tighter drop-shadow-[0_0_5px_rgba(168,85,247,0.8)]">{credits} CREDITS</span>
                         </div>
                         <button 
                           onClick={() => setIsPricingOpen(true)}
@@ -183,6 +247,34 @@ const JessicaChat: React.FC<JessicaChatProps> = ({ books }) => {
                     </div>
                   )}
                   <div ref={messagesEndRef} />
+                </div>
+
+                {/* Protocol Command Bar */}
+                <div className="px-2 py-3 bg-black/60 border-t border-white/5 grid grid-cols-3 gap-1.5">
+                  <button 
+                    onClick={() => activateProtocol('scanning')}
+                    disabled={isLoading}
+                    className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/20 transition-all group disabled:opacity-50"
+                  >
+                    <Search size={12} className="text-emerald-400" />
+                    <span className="text-[7px] font-black text-emerald-400 uppercase tracking-tighter text-center leading-none">ARCHIVE<br/>SCAN [5]</span>
+                  </button>
+                  <button 
+                    onClick={() => activateProtocol('summarizing')}
+                    disabled={isLoading || !currentBookId}
+                    className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl bg-purple-500/5 border border-purple-500/10 hover:bg-purple-500/20 transition-all group disabled:opacity-50"
+                  >
+                    <Sparkles size={12} className="text-purple-400" />
+                    <span className="text-[7px] font-black text-purple-400 uppercase tracking-tighter text-center leading-none">NEURAL<br/>SUMMARY [10]</span>
+                  </button>
+                  <button 
+                    onClick={() => activateProtocol('boosting')}
+                    disabled={isLoading || !currentBookId}
+                    className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl bg-orange-500/5 border border-orange-500/10 hover:bg-orange-500/20 transition-all group disabled:opacity-50"
+                  >
+                    <Zap size={12} className="text-orange-400" />
+                    <span className="text-[7px] font-black text-orange-400 uppercase tracking-tighter text-center leading-none">MOMENTUM<br/>BOOST [5]</span>
+                  </button>
                 </div>
 
                 {/* Input Area */}

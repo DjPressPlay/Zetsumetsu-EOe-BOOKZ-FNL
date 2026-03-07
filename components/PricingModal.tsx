@@ -71,16 +71,16 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, deviceId }
 
                     <h3 className="text-xl font-black text-white uppercase italic mb-4">PREMIUM ARCHIVIST</h3>
                     <p className="text-xs text-slate-400 mb-8 leading-relaxed">
-                      Unlock the full potential of the Zetsu Network. Permanent upgrade for your Neural ID.
+                      Unlock everything. A permanent upgrade for your account.
                     </p>
 
                     <ul className="space-y-4 mb-10 flex-1">
                       {[
-                        "UNLIMITED ARCHIVAL UPLOADS",
-                        "PRIORITY BITSTREAM PLACEMENT",
-                        "EXCLUSIVE AI SYNTHESIS NODES",
+                        "UPLOAD UNLIMITED BOOKS",
+                        "FEATURED IN THE FEED",
+                        "ADVANCED AI FEATURES",
                         "VERIFIED ARCHIVIST BADGE",
-                        "EARLY ACCESS TO NEW PROTOCOLS"
+                        "EARLY ACCESS TO NEW FEATURES"
                       ].map((feature, i) => (
                         <li key={i} className="flex items-center gap-3 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
                           <Check size={14} className="text-purple-500" />
@@ -112,18 +112,18 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, deviceId }
                       </div>
                     </div>
 
-                    <h3 className="text-xl font-black text-white uppercase italic mb-4">50 NEURAL SHARDS</h3>
+                    <h3 className="text-xl font-black text-white uppercase italic mb-4">50 AI CREDITS</h3>
                     <p className="text-xs text-slate-400 mb-8 leading-relaxed">
-                      The energy source for advanced AI operations. Power Jessica's deep-parsing capabilities.
+                      Power your AI assistant. Use credits to search, read, and analyze the archives.
                     </p>
 
                     <ul className="space-y-4 mb-10 flex-1">
                       {[
-                        "50 HIGH-DENSITY SHARDS",
-                        "DEEP-PARSING CAPABILITIES",
-                        "PRIORITY MOMENTUM BOOSTS",
-                        "AI SYNTHESIS CREDITS",
-                        "INSTANT NEURAL RECHARGE"
+                        "50 AI SEARCH & ANALYSIS CREDITS",
+                        "SEARCH ARCHIVES WITH AI",
+                        "HAVE AI READ & EXPLAIN BOOKS",
+                        "BOOST YOUR BOOK'S RANKING",
+                        "GENERATE DEEP AI INSIGHTS"
                       ].map((feature, i) => (
                         <li key={i} className="flex items-center gap-3 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
                           <Check size={14} className="text-[#00c2ff]" />
@@ -136,7 +136,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, deviceId }
                       onClick={() => handleCheckout('shards', 50)}
                       className="w-full py-4 bg-[#00c2ff] text-black font-black uppercase tracking-[0.2em] rounded-2xl shadow-lg hover:shadow-[#00c2ff]/20 transition-all active:scale-[0.98]"
                     >
-                      ACQUIRE SHARDS
+                      ACQUIRE CREDITS
                     </button>
                   </div>
                 </div>

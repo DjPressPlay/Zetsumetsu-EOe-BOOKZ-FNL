@@ -94,7 +94,7 @@ export const handler: Handler = async (event, context) => {
         const hasCredits = await deductCredits(userId, cost);
         
         if (!hasCredits && cost > 0) {
-          result = { error: `INSUFFICIENT_NEURAL_SHARDS: This operation requires ${cost} credits. Please top up your Neural Link.` };
+          result = { error: `INSUFFICIENT_CREDITS: This operation requires ${cost} credits. Please top up your Neural Link.` };
         } else {
           if (call.name === "search_zetsu_archives") {
             const query = (call.args as any).query.toLowerCase();
