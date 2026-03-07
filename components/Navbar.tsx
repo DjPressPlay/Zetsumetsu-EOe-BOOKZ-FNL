@@ -464,6 +464,10 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         <span className="text-[#00c2ff] font-black">●</span>
                         <span><strong className="text-white">READ METRICS:</strong> We track how many people are reading each book to show its impact on the community.</span>
                       </li>
+                      <li className="flex gap-2">
+                        <span className="text-yellow-400 font-black">●</span>
+                        <span><strong className="text-white">PROMO PROTOCOL:</strong> Collect badges from our newsletter to trade for promo weeks, gaining massive traction for your own books.</span>
+                      </li>
                     </ul>
                   </div>
 

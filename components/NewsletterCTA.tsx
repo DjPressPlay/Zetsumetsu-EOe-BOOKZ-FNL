@@ -1,8 +1,15 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Check, Sparkles, Mail } from 'lucide-react';
+import { Send, Check, Sparkles, Mail, Trophy, Zap, Star, Award, TrendingUp } from 'lucide-react';
 import { subscribeToNewsletter } from '../services/db';
+
+const PROMO_BADGES = [
+  { icon: Zap, label: "BOOST BADGE", color: "text-yellow-400", bg: "bg-yellow-400/10", border: "border-yellow-400/20" },
+  { icon: Star, label: "ELITE BADGE", color: "text-purple-400", bg: "bg-purple-400/10", border: "border-purple-400/20" },
+  { icon: Award, label: "LEGACY BADGE", color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" },
+  { icon: Trophy, label: "ALPHA BADGE", color: "text-[#00c2ff]", bg: "bg-[#00c2ff]/10", border: "border-[#00c2ff]/20" },
+];
 
 const NewsletterCTA: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -33,72 +40,97 @@ const NewsletterCTA: React.FC = () => {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#00c2ff] rounded-full blur-[120px] -translate-y-1/2" />
         </div>
 
-        <div className="relative z-10 max-w-2xl mx-auto">
+        <div className="relative z-10 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00c2ff]/10 border border-[#00c2ff]/20 mb-8">
             <Sparkles size={14} className="text-[#00c2ff]" />
-            <span className="text-[10px] font-black text-[#00c2ff] uppercase tracking-[0.3em]">Neural Broadcast</span>
+            <span className="text-[10px] font-black text-[#00c2ff] uppercase tracking-[0.3em]">Promotion Protocol</span>
           </div>
 
           <h2 className="text-4xl md:text-6xl font-black text-white uppercase italic tracking-tighter mb-6 leading-none">
-            Join the <span className="text-[#00c2ff]">Zetsu EOe BOOKZ</span> newsletter
+            COLLECT BADGES. <span className="text-[#00c2ff]">PROMOTE YOUR BOOK.</span>
           </h2>
           
-          <p className="text-sm md:text-base text-slate-400 font-bold uppercase tracking-wider mb-12 leading-relaxed">
-            Get updates on the latest books, neural protocols, and archival expansions directly in your inbox.
+          <p className="text-sm md:text-base text-slate-400 font-bold uppercase tracking-wider mb-12 leading-relaxed max-w-2xl mx-auto">
+            I post content containing <span className="text-white">PROMO BADGES</span>. Collect them to trade for <span className="text-[#00c2ff]">PROMO WEEKS</span> for your book. Gain massive attention, more readers, and traction for your brand.
           </p>
 
-          <form onSubmit={handleSubmit} className="relative max-w-md mx-auto">
-            <div className="relative group">
-              <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00c2ff] transition-colors" size={20} />
-              <input 
-                type="email" 
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="ENTER YOUR NEURAL_ID@EMAIL.COM" 
-                className="w-full bg-black border border-white/10 rounded-2xl py-5 pl-16 pr-32 text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase tracking-widest placeholder:text-slate-800"
-              />
-              <button 
-                type="submit"
-                disabled={status === 'loading' || status === 'success'}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-3 bg-[#00c2ff] text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 flex items-center gap-2"
+          {/* Kool Badges Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
+            {PROMO_BADGES.map((badge, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className={`p-6 rounded-3xl ${badge.bg} border ${badge.border} flex flex-col items-center gap-3 group hover:scale-105 transition-transform cursor-default`}
               >
-                {status === 'loading' ? (
-                  <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                ) : status === 'success' ? (
-                  <Check size={14} />
-                ) : (
-                  <>
-                    <Send size={14} />
-                    <span>Sync</span>
-                  </>
-                )}
-              </button>
+                <div className={`p-3 rounded-2xl bg-black/40 ${badge.color} shadow-lg`}>
+                  <badge.icon size={24} />
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${badge.color}`}>{badge.label}</span>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="flex flex-col items-center gap-8">
+            <div className="flex items-center gap-3 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
+              <TrendingUp size={14} className="text-[#00c2ff]" />
+              <span>Join to start earning traction</span>
             </div>
-            
-            <AnimatePresence>
-              {status === 'success' && (
-                <motion.p 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute -bottom-8 left-0 right-0 text-[10px] font-black text-[#00c2ff] uppercase tracking-widest"
+
+            <form onSubmit={handleSubmit} className="relative w-full max-w-md">
+              <div className="relative group">
+                <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00c2ff] transition-colors" size={20} />
+                <input 
+                  type="email" 
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="ENTER YOUR NEURAL_ID@EMAIL.COM" 
+                  className="w-full bg-black border border-white/10 rounded-2xl py-5 pl-16 pr-32 text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase tracking-widest placeholder:text-slate-800"
+                />
+                <button 
+                  type="submit"
+                  disabled={status === 'loading' || status === 'success'}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-3 bg-[#00c2ff] text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 flex items-center gap-2"
                 >
-                  Neural link established. Welcome to the network.
-                </motion.p>
-              )}
-              {status === 'error' && (
-                <motion.p 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute -bottom-8 left-0 right-0 text-[10px] font-black text-red-500 uppercase tracking-widest"
-                >
-                  Sync failed. Bitstream unstable.
-                </motion.p>
-              )}
-            </AnimatePresence>
-          </form>
+                  {status === 'loading' ? (
+                    <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                  ) : status === 'success' ? (
+                    <Check size={14} />
+                  ) : (
+                    <>
+                      <Send size={14} />
+                      <span>Sync</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              <AnimatePresence>
+                {status === 'success' && (
+                  <motion.p 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute -bottom-8 left-0 right-0 text-[10px] font-black text-[#00c2ff] uppercase tracking-widest"
+                  >
+                    Neural link established. Welcome to the network.
+                  </motion.p>
+                )}
+                {status === 'error' && (
+                  <motion.p 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute -bottom-8 left-0 right-0 text-[10px] font-black text-red-500 uppercase tracking-widest"
+                  >
+                    Sync failed. Bitstream unstable.
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </form>
+          </div>
         </div>
       </div>
     </section>
