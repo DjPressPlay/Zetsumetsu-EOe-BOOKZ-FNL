@@ -34,120 +34,161 @@ const NewsletterCTA: React.FC = () => {
 
   return (
     <section className="max-w-[1600px] mx-auto px-6 py-24">
-      <div className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-[#0a0a0a] to-black border border-white/10 p-8 md:p-16 text-center">
-        {/* Decorative elements */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none opacity-20">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#00c2ff] rounded-full blur-[120px] -translate-y-1/2" />
-        </div>
-
-        <div className="relative z-10 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00c2ff]/10 border border-[#00c2ff]/20 mb-8">
-            <Sparkles size={14} className="text-[#00c2ff]" />
-            <span className="text-[10px] font-black text-[#00c2ff] uppercase tracking-[0.3em]">Promotion Protocol</span>
-          </div>
-
-          <h2 className="text-4xl md:text-6xl font-black text-white uppercase italic tracking-tighter mb-6 leading-none">
-            COLLECT BADGES. <span className="text-[#00c2ff]">PROMOTE YOUR BOOK.</span>
-          </h2>
+      <div className="relative group">
+        {/* The "Open Book" Container */}
+        <div className="relative grid grid-cols-1 lg:grid-cols-2 min-h-[600px] bg-[#0a0a0a] border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl">
           
-          <p className="text-sm md:text-base text-slate-400 font-bold uppercase tracking-wider mb-12 leading-relaxed max-w-2xl mx-auto">
-            I post content containing <span className="text-white">PROMO BADGES</span>. Collect them to trade for <span className="text-[#00c2ff]">PROMO WEEKS</span> for your book. Gain massive attention, more readers, and traction for your brand.
-          </p>
+          {/* Central Spine/Fold */}
+          <div className="absolute top-0 bottom-0 left-1/2 w-px bg-white/5 hidden lg:block z-20 shadow-[0_0_20px_rgba(255,255,255,0.05)]" />
+          
+          {/* Left Page: Instructions */}
+          <div className="relative p-8 md:p-16 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-white/5 bg-gradient-to-br from-[#0d0d0d] to-[#0a0a0a]">
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00c2ff]/10 border border-[#00c2ff]/20 mb-8">
+                <Sparkles size={14} className="text-[#00c2ff]" />
+                <span className="text-[10px] font-black text-[#00c2ff] uppercase tracking-[0.3em]">Newsletter Promo</span>
+              </div>
 
-          {/* Kool Badges Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
-            {PROMO_BADGES.map((badge, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className={`p-6 rounded-3xl ${badge.bg} border ${badge.border} flex flex-col items-center gap-3 group hover:scale-105 transition-transform cursor-default`}
-              >
-                <div className={`p-3 rounded-2xl bg-black/40 ${badge.color} shadow-lg`}>
-                  <badge.icon size={24} />
+              <h2 className="text-3xl md:text-5xl font-black text-white uppercase italic tracking-tighter mb-8 leading-none">
+                Newsletter <span className="text-[#00c2ff]">Promo</span>
+              </h2>
+
+              <div className="space-y-6 text-left">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1 h-1 bg-[#00c2ff] rounded-full" />
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Promotion Protocol</span>
                 </div>
-                <span className={`text-[10px] font-black uppercase tracking-widest ${badge.color}`}>{badge.label}</span>
-              </motion.div>
-            ))}
+                <p className="text-sm md:text-base text-slate-300 font-bold uppercase tracking-wider leading-relaxed">
+                  You wrote a book. You have something to share. A new idea surfaced... <br />
+                  <span className="text-white">Now you need people to see it.</span>
+                </p>
+                
+                <p className="text-xs md:text-sm text-slate-400 font-medium uppercase tracking-widest leading-relaxed">
+                  The Archive runs a promo network across 6 platforms. The Promotion Protocol is how you get your book in front of that audience — for free, just by showing up.
+                </p>
+
+                <div className="p-6 bg-white/5 rounded-2xl border border-white/5 space-y-4">
+                  <h3 className="text-[10px] font-black text-[#00c2ff] uppercase tracking-[0.3em]">How it works</h3>
+                  <ul className="space-y-3">
+                    <li className="flex items-start gap-3">
+                      <div className="mt-1 w-1 h-1 bg-[#00c2ff] rounded-full shrink-0" />
+                      <p className="text-[11px] text-slate-300 font-bold uppercase tracking-widest leading-relaxed">
+                        Every so often a post goes out across the network with a badge hidden inside it.
+                      </p>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-1 w-1 h-1 bg-[#00c2ff] rounded-full shrink-0" />
+                      <p className="text-[11px] text-slate-300 font-bold uppercase tracking-widest leading-relaxed">
+                        Catch it while it's live and it's yours.
+                      </p>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-1 w-1 h-1 bg-[#00c2ff] rounded-full shrink-0" />
+                      <p className="text-[11px] text-slate-300 font-bold uppercase tracking-widest leading-relaxed">
+                        Turn it in and your book gets posted across the whole network the same day.
+                      </p>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col items-center gap-8">
-            <div className="flex items-center gap-3 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
-              <TrendingUp size={14} className="text-[#00c2ff]" />
-              <span>Join to start earning traction</span>
-            </div>
-
-            <form onSubmit={handleSubmit} className="relative w-full max-w-md">
-              <div className="relative group">
-                <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00c2ff] transition-colors" size={20} />
-                <input 
-                  type="email" 
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ENTER YOUR NEURAL_ID@EMAIL.COM" 
-                  className="w-full bg-black border border-white/10 rounded-2xl py-5 pl-16 pr-32 text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase tracking-widest placeholder:text-slate-800"
-                />
-                <button 
-                  type="submit"
-                  disabled={status === 'loading' || status === 'success'}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-3 bg-[#00c2ff] text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                  {status === 'loading' ? (
-                    <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                  ) : status === 'success' ? (
-                    <Check size={14} />
-                  ) : (
-                    <>
-                      <Send size={14} />
-                      <span>Sync</span>
-                    </>
-                  )}
-                </button>
+          {/* Right Page: The Long Game & Signup */}
+          <div className="relative p-8 md:p-16 flex flex-col justify-center bg-gradient-to-bl from-[#0a0a0a] to-[#0d0d0d]">
+            <div className="relative z-10 space-y-10">
+              <div className="space-y-4 text-left">
+                <h3 className="text-xl md:text-2xl font-black text-white uppercase italic tracking-tighter">
+                  The <span className="text-[#00c2ff]">Longer Game</span>
+                </h3>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <div className="mt-1.5 w-1 h-1 bg-[#00c2ff] rounded-full shrink-0" />
+                    <p className="text-xs md:text-sm text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
+                      Collect all 4 badge types and instead of one post you get a 2 day run.
+                    </p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="mt-1.5 w-1 h-1 bg-[#00c2ff] rounded-full shrink-0" />
+                    <p className="text-xs md:text-sm text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
+                      Your book goes out for two days across every platform. <span className="text-white">That's the move.</span>
+                    </p>
+                  </li>
+                </ul>
+                <div className="flex gap-4 text-[9px] font-black text-[#00c2ff] uppercase tracking-widest">
+                  <span>No paid ads</span>
+                  <span className="text-slate-700">/</span>
+                  <span>No pitching</span>
+                </div>
               </div>
-              
-              <AnimatePresence>
-                {status === 'success' && (
-                  <motion.p 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute -bottom-8 left-0 right-0 text-[10px] font-black text-[#00c2ff] uppercase tracking-widest"
-                  >
-                    Neural link established. Welcome to the network.
-                  </motion.p>
-                )}
-                {status === 'error' && (
-                  <motion.p 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute -bottom-8 left-0 right-0 text-[10px] font-black text-red-500 uppercase tracking-widest"
-                  >
-                    Sync failed. Bitstream unstable.
-                  </motion.p>
-                )}
-              </AnimatePresence>
-            </form>
 
-            <div className="mt-12 pt-12 border-t border-white/5 w-full">
-              <button 
-                onClick={() => window.open('https://www.skool.com/zetsuedu-7521/about', '_blank')}
-                className="group relative inline-flex items-center gap-3 px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all hover:scale-105 active:scale-95"
-              >
-                <div className="p-2 bg-[#00c2ff]/10 rounded-lg text-[#00c2ff] group-hover:scale-110 transition-transform">
-                  <BookOpen size={20} />
-                </div>
+              {/* Badges Row */}
+              <div className="flex flex-wrap gap-2 justify-start">
+                {PROMO_BADGES.map((badge, i) => (
+                  <div key={i} className={`px-3 py-2 rounded-xl ${badge.bg} border ${badge.border} flex items-center gap-2`}>
+                    <badge.icon size={12} className={badge.color} />
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${badge.color}`}>{badge.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-6">
                 <div className="text-left">
-                  <span className="block text-[10px] font-black text-white uppercase tracking-[0.2em]">Join Zetsu EDU</span>
-                  <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-widest">Master the Archival Arts</span>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">
+                    It works simple. Follow to start earning. <br />
+                    <span className="text-white">Just follow the Zetsu network, stay sharp, catch the drops.</span>
+                  </p>
                 </div>
-                <ArrowRight size={16} className="ml-4 text-slate-600 group-hover:text-[#00c2ff] group-hover:translate-x-1 transition-all" />
-              </button>
+
+                <form onSubmit={handleSubmit} className="relative w-full">
+                  <div className="relative group">
+                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00c2ff] transition-colors" size={20} />
+                    <input 
+                      type="email" 
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="SYNC YOUR NEURAL_ID@EMAIL.COM" 
+                      className="w-full bg-black border border-white/10 rounded-2xl py-5 pl-16 pr-32 text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase tracking-widest placeholder:text-slate-800"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={status === 'loading' || status === 'success'}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-3 bg-[#00c2ff] text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {status === 'loading' ? (
+                        <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                      ) : status === 'success' ? (
+                        <Check size={14} />
+                      ) : (
+                        <>
+                          <Send size={14} />
+                          <span>Sync</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+
+                <div className="pt-8 border-t border-white/5 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp size={14} className="text-[#00c2ff]" />
+                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Network Status: Active</span>
+                  </div>
+                  <button 
+                    onClick={() => window.open('https://www.skool.com/zetsuedu-7521/about', '_blank')}
+                    className="text-[9px] font-black text-[#00c2ff] hover:underline uppercase tracking-widest"
+                  >
+                    Join Zetsu EDU →
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Decorative Book Shadow/Depth */}
+        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-[95%] h-8 bg-white/5 blur-2xl rounded-full -z-10" />
       </div>
     </section>
   );
