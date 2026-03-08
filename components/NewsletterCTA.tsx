@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Check, Sparkles, Mail, Trophy, Zap, Star, Award, TrendingUp, BookOpen, ArrowRight } from 'lucide-react';
+import { Send, Check, Sparkles, Mail, Trophy, Zap, Star, Award, TrendingUp, BookOpen, ArrowRight, Instagram, Linkedin, Facebook, Globe } from 'lucide-react';
 import { subscribeToNewsletter } from '../services/db';
 
 const PROMO_BADGES = [
@@ -170,17 +170,61 @@ const NewsletterCTA: React.FC = () => {
                   </div>
                 </form>
 
-                <div className="pt-8 border-t border-white/5 flex justify-between items-center">
+                <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-6">
                   <div className="flex items-center gap-2">
                     <TrendingUp size={14} className="text-[#00c2ff]" />
                     <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Network Status: Active</span>
                   </div>
-                  <button 
-                    onClick={() => window.open('https://www.skool.com/zetsuedu-7521/about', '_blank')}
-                    className="text-[9px] font-black text-[#00c2ff] hover:underline uppercase tracking-widest"
-                  >
-                    Join Zetsu EDU →
-                  </button>
+                  
+                  <div className="flex items-center gap-6">
+                    {/* Social Icons */}
+                    <div className="flex items-center gap-4 border-r border-white/10 pr-6">
+                      <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest mr-2">Follow:</span>
+                      <a 
+                        href="https://www.instagram.com/artworqq/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-slate-500 hover:text-[#00c2ff] transition-colors" 
+                        title="Instagram"
+                      >
+                        <Instagram size={16} />
+                      </a>
+                      <a 
+                        href="https://www.linkedin.com/in/artworqq-kevin-suber-31547573/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-slate-500 hover:text-[#00c2ff] transition-colors" 
+                        title="LinkedIn"
+                      >
+                        <Linkedin size={16} />
+                      </a>
+                      <a 
+                        href="https://www.facebook.com/people/Zetsuedu/61584374975193/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-slate-500 hover:text-[#00c2ff] transition-colors" 
+                        title="Facebook"
+                      >
+                        <Facebook size={16} />
+                      </a>
+                      <a 
+                        href="https://share.google/Gf0nbD7yyZlAdd3xF" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-slate-500 hover:text-[#00c2ff] transition-colors" 
+                        title="Google"
+                      >
+                        <Globe size={16} />
+                      </a>
+                    </div>
+
+                    <button 
+                      onClick={() => window.open('https://www.skool.com/zetsuedu-7521/about', '_blank')}
+                      className="text-[9px] font-black text-[#00c2ff] hover:underline uppercase tracking-widest whitespace-nowrap"
+                    >
+                      Join Zetsu EDU →
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
