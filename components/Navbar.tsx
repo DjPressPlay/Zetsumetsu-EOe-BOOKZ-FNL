@@ -922,74 +922,62 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
               className="relative bg-[#0a0a0a] w-full max-w-2xl rounded-[2rem] md:rounded-[2.5rem] shadow-2xl border border-white/10 my-auto overflow-hidden"
             >
               <div className="p-8 md:p-12 text-white max-h-[90vh] overflow-y-auto">
-                <h2 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase mb-4 md:mb-6">Manifesto</h2>
-                <div className="h-1 w-20 md:w-24 bg-[#00c2ff] mt-2 md:mt-4 mb-6 md:mb-8" />
-                <div className="space-y-6 text-slate-400 text-xs md:text-sm leading-relaxed mb-8 md:mb-12">
-                  <p>
-                    Zetsumetsu EOe BOOKZ is a modern digital library. We take static PDF books and turn them into beautiful, interactive pages that are easy to read and share. Our goal is to preserve knowledge in a way that feels fresh and accessible.
+                <h2 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase mb-4 md:mb-6">System_Manifesto</h2>
+                <div className="h-1 w-20 md:w-24 bg-[#00c2ff] mt-2 md:mt-4 mb-6 md:mb-8 shadow-[0_0_15px_rgba(0,194,255,0.5)]" />
+                <div className="space-y-8 text-slate-400 text-xs md:text-sm leading-relaxed mb-8 md:mb-12">
+                  <p className="text-white font-bold uppercase tracking-tight">
+                    Zetsumetsu EOe BOOKZ is a high-fidelity neural archive designed to transform static PDF documentation into immersive digital experiences. It functions as a decentralized storage nexus where creative intelligence is preserved.
                   </p>
                   
-                  <div className="space-y-4">
-                    <p className="text-white font-black uppercase tracking-widest text-[9px] md:text-[10px]">How it works:</p>
-                    <ul className="space-y-2 list-none">
-                      <li className="flex gap-2">
-                        <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">COMMUNITY RANKING:</strong> Users vote on the best books, bringing the most valuable content to the top of the feed.</span>
+                  <div className="space-y-6">
+                    <p className="text-[#00c2ff] font-black uppercase tracking-widest text-[9px] md:text-[10px]">Integrated_Features:</p>
+                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 list-none">
+                      <li className="flex gap-3">
+                        <span className="text-[#00c2ff] font-black mt-1">●</span>
+                        <span><strong className="text-white">NEURAL ARCHIVE:</strong> Instant PDF-to-Digital transformation with automated thumbnails and interactive reading.</span>
                       </li>
-                      <li className="flex gap-2">
-                        <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">OPEN DISCOURSE:</strong> Every book has a comment section for discussion, critiques, and shared notes.</span>
+                      <li className="flex gap-3">
+                        <span className="text-[#00c2ff] font-black mt-1">●</span>
+                        <span><strong className="text-white">ZETSU BOOKSTORE:</strong> Physical Print-on-Demand in Coloring, Board, Softcover, and Hardcover styles.</span>
                       </li>
-                      <li className="flex gap-2">
-                        <span className="text-purple-400 font-black">●</span>
-                        <span><strong className="text-white">CREDIT SYSTEM:</strong> Use your daily credits to interact with the library, boost your favorite books, and search the archives.</span>
+                      <li className="flex gap-3">
+                        <span className="text-[#00c2ff] font-black mt-1">●</span>
+                        <span><strong className="text-white">PROMO PROTOCOL:</strong> Gamified badge collection for free 2-day global broadcast runs across 6 platforms.</span>
                       </li>
-                      <li className="flex gap-2">
-                        <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">SECURE IDENTITY:</strong> Your unique ID ensures that the ranking system stays fair and free from spam.</span>
+                      <li className="flex gap-3">
+                        <span className="text-[#00c2ff] font-black mt-1">●</span>
+                        <span><strong className="text-white">ZETSU EDU:</strong> Educational nexus for creators to master archival arts and scale their reach.</span>
                       </li>
-                      <li className="flex gap-2">
-                        <span className="text-indigo-400 font-black">●</span>
-                        <span><strong className="text-white">PREMIUM ACCESS:</strong> Upgrade to upload unlimited books, get featured in the main feed, and unlock advanced library tools.</span>
+                      <li className="flex gap-3">
+                        <span className="text-[#00c2ff] font-black mt-1">●</span>
+                        <span><strong className="text-white">COMMUNITY RESPONSE:</strong> Trending feed, open discourse via comments, and author profile preservation.</span>
                       </li>
-                      <li className="flex gap-2">
-                        <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">READ METRICS:</strong> We track how many people are reading each book to show its impact on the community.</span>
+                      <li className="flex gap-3">
+                        <span className="text-[#00c2ff] font-black mt-1">●</span>
+                        <span><strong className="text-white">ADVANCED SEARCH:</strong> Multi-term intersection logic for deep discovery across titles, authors, and genre sectors.</span>
                       </li>
-                      <li className="flex gap-2">
-                        <span className="text-yellow-400 font-black">●</span>
-                        <span><strong className="text-white">PROMO PROTOCOL:</strong> Collect badges from our newsletter to trade for promo weeks, gaining massive traction for your own books.</span>
+                      <li className="flex gap-3">
+                        <span className="text-[#00c2ff] font-black mt-1">●</span>
+                        <span><strong className="text-white">PREMIUM TIER:</strong> Unlimited archival storage and priority broadcast slots for verified creators.</span>
                       </li>
-                    </ul>
-                  </div>
-
-                  <div className="space-y-4">
-                    <p className="text-white font-black uppercase tracking-widest text-[9px] md:text-[10px]">Future Updates:</p>
-                    <ul className="space-y-2 list-none opacity-60">
-                      <li className="flex gap-2">
-                        <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">DEEP SEARCH:</strong> Searching through the actual text inside every book in the library.</span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">AUDIO BOOKS:</strong> Adding support for audio versions and voice-narrated nodes.</span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">VERSION HISTORY:</strong> Tracking how data and documents change over time.</span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="text-[#00c2ff] font-black">●</span>
-                        <span><strong className="text-white">PRIVATE COLLECTIONS:</strong> Create your own private folders to organize your research.</span>
+                      <li className="flex gap-3">
+                        <span className="text-[#00c2ff] font-black mt-1">●</span>
+                        <span><strong className="text-white">GLOBAL LOGISTICS:</strong> Secure Stripe checkout with worldwide shipping directly from our printing facilities.</span>
                       </li>
                     </ul>
                   </div>
 
-                  <p className="pt-4 border-t border-white/5">
-                    Digital Archiving, The Zetsu Way.
-                  </p>
+                  <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[8px] font-black text-slate-700 uppercase tracking-[0.3em]">Build_Version: 2.8.5-STABLE</span>
+                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-[0.3em]">Status: All Systems Nominal</span>
+                    </div>
+                    <p className="text-[10px] font-black text-white italic uppercase tracking-widest">
+                      Digital Archiving, The Zetsu Way.
+                    </p>
+                  </div>
                 </div>
-                <button onClick={() => setIsAboutOpen(false)} className="w-full bg-white text-black py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-xs md:text-base">Close</button>
+                <button onClick={() => setIsAboutOpen(false)} className="w-full bg-white text-black py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-xs md:text-base hover:bg-[#00c2ff] transition-colors">Close_Link</button>
               </div>
             </motion.div>
           </div>
