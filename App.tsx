@@ -77,7 +77,8 @@ CREATE TABLE IF NOT EXISTS site_metrics (
 
 CREATE TABLE IF NOT EXISTS newsletter_emails (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT UNIQUE NOT NULL,
+  email TEXT NOT NULL,
+  order_info TEXT,
   signup_date TIMESTAMPTZ DEFAULT NOW()
 );
 

@@ -367,7 +367,25 @@ export const subscribeToNewsletter = async (email: string): Promise<void> => {
   }
 };
 
-export const getNewsletterEmails = async (): Promise<{ email: string, signup_date: string }[]> => {
+export const saveOrderToArchive = async (email: string, orderInfo: string): Promise<void> => {
+  const supabase = ensureClient();
+  // We save the order info into the email archive as requested
+  const { error } = await supabase
+    .from('newsletter_emails')
+    .insert([{ email, order_info: orderInfo }]);
+  
+  if (error) {
+    // If it's a duplicate email, we might want to update it or just insert a new row if the schema allows
+    // Assuming the schema allows multiple entries for the same email or we just ignore the unique constraint for orders
+    const { error: retryError } = await supabase
+      .from('newsletter_emails')
+      .insert([{ email: `${email}_order_${Date.now()}`, order_info: orderInfo }]);
+    
+    if (retryError) throw retryError;
+  }
+};
+
+export const getNewsletterEmails = async (): Promise<{ email: string, signup_date: string, order_info?: string }[]> => {
   const supabase = ensureClient();
   const { data, error } = await supabase
     .from('newsletter_emails')

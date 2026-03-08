@@ -25,6 +25,19 @@ export const handler: Handler = async (event, context) => {
         },
         quantity: 1,
       }];
+    } else if (type === 'pod') {
+      const { bookTitle, format, quantity } = JSON.parse(event.body || "{}");
+      line_items = [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `Zetsu POD: ${bookTitle}`,
+            description: `Physical ${format} edition from the Zetsumetsu Archives. Qty: ${quantity || 1}`,
+          },
+          unit_amount: amount, // amount is passed from client (total including shipping)
+        },
+        quantity: 1,
+      }];
     } else {
       return { statusCode: 400, body: "Invalid payment type" };
     }
@@ -39,6 +52,7 @@ export const handler: Handler = async (event, context) => {
         userId,
         type,
         amount: amount?.toString() || "",
+        quantity: JSON.parse(event.body || "{}").quantity?.toString() || "1"
       },
     });
 

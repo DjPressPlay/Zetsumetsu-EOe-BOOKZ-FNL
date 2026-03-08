@@ -1,10 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Info, X, Send, ChevronDown, Fingerprint, Cpu, Zap, FileText, Sparkles, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Search, Info, X, Send, ChevronDown, Fingerprint, Cpu, Zap, FileText, Sparkles, Loader2, Image as ImageIcon, ShoppingBag, Truck, Package, CreditCard, Minus, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { processPdfForStore } from '../services/pdfService';
-import { saveBook, getUserUploadCount, getUserCredits } from '../services/db';
+import { saveBook, getUserUploadCount, getUserCredits, getAllMetadata, saveOrderToArchive } from '../services/db';
 import { BookMetadata, BookData } from '../types';
 import { Crown } from 'lucide-react';
 import PricingModal from './PricingModal';
@@ -32,6 +32,19 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [isRequestOpen, setIsRequestOpen] = useState(false);
+  const [isShopOpen, setIsShopOpen] = useState(false);
+  const [shopSearch, setShopSearch] = useState("");
+  const [selectedBook, setSelectedBook] = useState<BookMetadata | null>(null);
+  const [orderStep, setOrderStep] = useState<'selection' | 'form'>('selection');
+  const [allBooks, setAllBooks] = useState<BookMetadata[]>([]);
+  const [orderData, setOrderData] = useState({ 
+    name: '', 
+    email: '', 
+    address: '', 
+    format: 'coloring' as 'coloring' | 'board' | 'soft_photo' | 'hard_photo',
+    quantity: 1
+  });
+  const [shippingCost, setShippingCost] = useState(0);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'uploading' | 'success' | 'error'>('idle');
@@ -39,10 +52,11 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const [formData, setFormData] = useState({ title: '', author: '', genre: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch premium status
+  // Fetch premium status and books
   useEffect(() => {
     const deviceId = getDeviceId();
     getUserCredits(deviceId).then(data => setIsPremium(data.isPremium));
+    getAllMetadata().then(setAllBooks);
   }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,6 +108,9 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       await saveBook(metadata, data, deviceId);
       setUploadStatus('success');
       
+      // Update local books list
+      setAllBooks(prev => [metadata, ...prev]);
+      
       // Refresh the page or trigger a global refresh
       setTimeout(() => {
         window.location.reload();
@@ -102,6 +119,78 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       setUploadStatus('error');
     }
   };
+
+  const handleOrderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBook) return;
+
+    try {
+      const deviceId = getDeviceId();
+      // Save order info to newsletter_emails archive
+      const orderInfo = `ORDER: ${selectedBook.title} (${orderData.format}) | Name: ${orderData.name} | Address: ${orderData.address} | Shipping: $${shippingCost.toFixed(2)}`;
+      await saveOrderToArchive(orderData.email, orderInfo);
+
+      // Redirect to Stripe
+      const priceMap = {
+        coloring: 1500,
+        board: 2499,
+        soft_photo: 3499,
+        hard_photo: 4999
+      };
+      const bookPrice = priceMap[orderData.format];
+      const subtotal = bookPrice * orderData.quantity;
+      const totalAmount = subtotal + Math.round(shippingCost * 100);
+      
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: deviceId,
+          type: 'pod',
+          bookTitle: selectedBook.title,
+          format: orderData.format,
+          amount: totalAmount,
+          quantity: orderData.quantity
+        }),
+      });
+      const session = await response.json();
+      if (session.url) window.location.href = session.url;
+    } catch (err) {
+      console.error(err);
+      alert("Order initialization failed. Bitstream unstable.");
+    }
+  };
+
+  // Shipping Calculator Logic
+  useEffect(() => {
+    if (!orderData.address.trim()) {
+      setShippingCost(0);
+      return;
+    }
+
+    // Heuristic shipping calculation
+    let cost = 5.99; // Base shipping
+    const addr = orderData.address.toLowerCase();
+    
+    // Simulate international shipping detection
+    const internationalKeywords = ['uk', 'united kingdom', 'canada', 'australia', 'germany', 'france', 'japan', 'europe', 'asia', 'africa'];
+    const isInternational = internationalKeywords.some(k => addr.includes(k)) || 
+                           (addr.length > 10 && !/\d{5}/.test(addr)); // Simple check for US Zip code
+
+    if (isInternational) {
+      cost = 19.99;
+    }
+
+    // Add a small variable based on address length to simulate "distance"
+    cost += (orderData.address.length % 5) * 0.5;
+
+    setShippingCost(cost);
+  }, [orderData.address]);
+
+  const filteredShopBooks = allBooks.filter(b => 
+    b.title.toLowerCase().includes(shopSearch.toLowerCase()) ||
+    b.author.toLowerCase().includes(shopSearch.toLowerCase())
+  );
 
   return (
     <>
@@ -177,6 +266,14 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                   >
                     <Send size={14} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     <span className="hidden min-[540px]:inline">SUBMIT DATA</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setIsShopOpen(true)}
+                    className="px-4 md:px-6 py-2.5 md:py-3 bg-[#00f2c3] text-black hover:bg-white text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center gap-2 rounded-full shadow-[0_0_25px_rgba(0,242,195,0.3)] hover:shadow-[0_0_45px_rgba(0,242,195,0.6)] active:scale-95 group"
+                  >
+                    <ShoppingBag size={14} className="group-hover:scale-110 transition-transform" />
+                    <span className="hidden md:inline">Shop</span>
                   </button>
 
                   <button 
@@ -407,6 +504,401 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                     )}
                   </AnimatePresence>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isShopOpen && (
+          <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/95 backdrop-blur-3xl" 
+              onClick={() => {
+                setIsShopOpen(false);
+                setSelectedBook(null);
+                setOrderStep('selection');
+              }} 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-[#0a0a0a] w-full max-w-5xl rounded-[2.5rem] shadow-2xl border border-white/10 my-auto overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* 1. HEADER */}
+              <div className="p-4 md:p-6 border-b border-white/5 bg-black/60 backdrop-blur-md sticky top-0 z-10 flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00c2ff]/10 border border-[#00c2ff]/20">
+                    <ShoppingBag size={12} className="text-[#00c2ff]" />
+                    <span className="text-[9px] font-black text-[#00c2ff] uppercase tracking-widest">Zetsu Bookstore</span>
+                  </div>
+                  <h2 className="text-lg md:text-xl font-black text-white uppercase italic tracking-tighter">Order Physical Books</h2>
+                </div>
+                <button 
+                  onClick={() => {
+                    setIsShopOpen(false);
+                    setSelectedBook(null);
+                    setOrderStep('selection');
+                  }} 
+                  className="p-2 hover:bg-white/5 rounded-full text-slate-500 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Shop Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6 md:p-10">
+                <AnimatePresence mode="wait">
+                  {orderStep === 'selection' ? (
+                    <motion.div 
+                      key="selection"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="space-y-8"
+                    >
+                      {/* 2. SEARCH BAR */}
+                      <div className="relative max-w-2xl mx-auto">
+                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                        <input 
+                          type="text"
+                          value={shopSearch}
+                          onChange={(e) => setShopSearch(e.target.value)}
+                          placeholder="SEARCH THE BOOKSTORE..."
+                          className="w-full bg-black border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase tracking-widest"
+                        />
+                      </div>
+
+                      {/* 3. DESCRIPTION (Bulleted) */}
+                      <div className="max-w-3xl mx-auto">
+                        <ul className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] leading-relaxed space-y-2 list-none text-center">
+                          <li className="flex items-center justify-center gap-2">
+                            <span className="w-1 h-1 bg-[#00c2ff] rounded-full" />
+                            High-fidelity print-on-demand process initiated upon order
+                          </li>
+                          <li className="flex items-center justify-center gap-2">
+                            <span className="w-1 h-1 bg-[#00c2ff] rounded-full" />
+                            Professionally printed, bound, and finished to your selection
+                          </li>
+                          <li className="flex items-center justify-center gap-2">
+                            <span className="w-1 h-1 bg-[#00c2ff] rounded-full" />
+                            Secure checkout via Stripe directly to our printing facility
+                          </li>
+                          <li className="flex items-center justify-center gap-2">
+                            <span className="w-1 h-1 bg-[#00c2ff] rounded-full" />
+                            Manufactured and shipped globally to your coordinates
+                          </li>
+                        </ul>
+                      </div>
+
+                      {/* 4. PRICES & SPECS (Consolidated) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 max-w-5xl mx-auto">
+                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl group hover:border-[#00c2ff]/50 transition-all">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <Sparkles size={12} className="text-[#00c2ff]" />
+                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Coloring Book style</span>
+                            </div>
+                            <span className="text-sm font-black text-[#00c2ff]">$15</span>
+                          </div>
+                          <div className="space-y-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 8.5" x 11" Standard Size</p>
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 26 Premium White Sheets</p>
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Ideal for Crayons/Markers</p>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl group hover:border-purple-500/50 transition-all">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <Crown size={12} className="text-purple-400" />
+                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Board Book style</span>
+                            </div>
+                            <span className="text-sm font-black text-purple-400">$24.99</span>
+                          </div>
+                          <div className="space-y-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 1/16” Thick Chipboard</p>
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Matte Lamination Finish</p>
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Safe Rounded Corners</p>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl group hover:border-emerald-500/50 transition-all">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <FileText size={12} className="text-emerald-400" />
+                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Softcover Book style</span>
+                            </div>
+                            <span className="text-sm font-black text-emerald-400">$34.99</span>
+                          </div>
+                          <div className="space-y-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 8'' x 8'' Square Format</p>
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 100 lb Semi-Gloss Paper</p>
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Vibrant HD Full-Color</p>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl group hover:border-indigo-500/50 transition-all">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <Zap size={12} className="text-indigo-400" />
+                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Hardcover Book style</span>
+                            </div>
+                            <span className="text-sm font-black text-indigo-400">$49.99</span>
+                          </div>
+                          <div className="space-y-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 11'' x 8.5'' / 8'' x 8''</p>
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Glossy or Matte Finish</p>
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Professional Binding</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 5. BOOKS GRID */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pt-4 border-t border-white/5">
+                        {filteredShopBooks.map((book) => (
+                          <motion.div 
+                            key={book.id}
+                            whileHover={{ y: -5 }}
+                            onClick={() => {
+                              setSelectedBook(book);
+                              setOrderStep('form');
+                            }}
+                            className="group cursor-pointer"
+                          >
+                            <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5 group-hover:border-[#00c2ff]/50 transition-all shadow-xl">
+                              <img src={book.thumbnail} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={book.title} />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                                <span className="text-[9px] font-black text-[#00c2ff] uppercase tracking-widest">Order Now</span>
+                              </div>
+                            </div>
+                            <h4 className="text-[10px] font-black text-white uppercase truncate mb-1">{book.title}</h4>
+                            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{book.author}</p>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="form"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="max-w-2xl mx-auto"
+                    >
+                      <button 
+                        onClick={() => setOrderStep('selection')}
+                        className="text-[9px] font-black text-[#00c2ff] uppercase tracking-widest mb-8 flex items-center gap-2 hover:translate-x-[-4px] transition-transform"
+                      >
+                        ← Back to Bookstore
+                      </button>
+
+                      <div className="grid md:grid-cols-2 gap-10">
+                        {/* Book Preview */}
+                        <div className="space-y-6">
+                          <div className="aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+                            <img src={selectedBook?.thumbnail} className="w-full h-full object-cover" alt="preview" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-black text-white uppercase italic mb-2">{selectedBook?.title}</h3>
+                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">By {selectedBook?.author}</p>
+                          </div>
+                        </div>
+
+                        {/* Order Form */}
+                        <form onSubmit={handleOrderSubmit} className="space-y-6">
+                          <div className="space-y-4">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
+                              Choose your format and enter your shipping details below.
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <button 
+                                type="button"
+                                onClick={() => setOrderData({...orderData, format: 'coloring'})}
+                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'coloring' ? 'bg-[#00c2ff] border-[#00c2ff] text-black' : 'bg-black border-white/10 text-white hover:border-white/20'}`}
+                              >
+                                <span className="block text-[8px] font-black uppercase tracking-widest">Coloring Book style</span>
+                                <span className="block text-[11px] font-black mt-0.5">$15.00</span>
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => setOrderData({...orderData, format: 'board'})}
+                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'board' ? 'bg-[#00c2ff] border-[#00c2ff] text-black' : 'bg-black border-white/10 text-white hover:border-white/20'}`}
+                              >
+                                <span className="block text-[8px] font-black uppercase tracking-widest">Board Book style</span>
+                                <span className="block text-[11px] font-black mt-0.5">$24.99</span>
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => setOrderData({...orderData, format: 'soft_photo'})}
+                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'soft_photo' ? 'bg-[#00c2ff] border-[#00c2ff] text-black' : 'bg-black border-white/10 text-white hover:border-white/20'}`}
+                              >
+                                <span className="block text-[8px] font-black uppercase tracking-widest">Softcover Book style</span>
+                                <span className="block text-[11px] font-black mt-0.5">$34.99</span>
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => setOrderData({...orderData, format: 'hard_photo'})}
+                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'hard_photo' ? 'bg-[#00c2ff] border-[#00c2ff] text-black' : 'bg-black border-white/10 text-white hover:border-white/20'}`}
+                              >
+                                <span className="block text-[8px] font-black uppercase tracking-widest">Hardcover Book style</span>
+                                <span className="block text-[11px] font-black mt-0.5">$49.99</span>
+                              </button>
+                            </div>
+
+                            {/* Format Specifications */}
+                            <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                              <h4 className="text-[9px] font-black text-[#00c2ff] uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <Info size={12} />
+                                Product Specifications
+                              </h4>
+                              <div className="space-y-2">
+                                {orderData.format === 'coloring' && (
+                                  <>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Size: 8.5" x 11" (Standard Coloring Size)</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Pages: 26 Premium White Sheets</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Quality: Ideal for crayons, markers, watercolors</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Cover: Flexible Soft Cover</p>
+                                  </>
+                                )}
+                                {orderData.format === 'board' && (
+                                  <>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Material: 1/16” Thick White Chipboard</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Finish: Matte Lamination (Anti-Fingerprint)</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Safety: Rounded Corners Design</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Limit: Max 20 Pages</p>
+                                  </>
+                                )}
+                                {orderData.format === 'soft_photo' && (
+                                  <>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Size: 8'' x 8'' Square Format</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Binding: Sturdy Hardcover (Glossy or Matte)</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Paper: 100 lb Archival Semi-Gloss</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Print: Vibrant Full-Color High-Definition</p>
+                                  </>
+                                )}
+                                {orderData.format === 'hard_photo' && (
+                                  <>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Size: 11'' x 8.5'' or 8'' x 8''</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Finish: Premium Glossy or Matte Boards</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Binding: Professional Library-Grade Binding</p>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Limit: Max 24 Pages</p>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4">
+                              <div className="col-span-2 space-y-1">
+                                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Shipping Name</label>
+                                <input 
+                                  required
+                                  value={orderData.name}
+                                  onChange={e => setOrderData({...orderData, name: e.target.value})}
+                                  placeholder="Full Name"
+                                  className="w-full bg-black border border-white/10 py-3 px-5 rounded-xl text-[10px] font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Quantity</label>
+                                <div className="flex items-center bg-black border border-white/10 rounded-xl overflow-hidden">
+                                  <button 
+                                    type="button"
+                                    onClick={() => setOrderData({...orderData, quantity: Math.max(1, orderData.quantity - 1)})}
+                                    className="p-3 hover:bg-white/5 text-slate-400"
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+                                  <span className="flex-1 text-center text-[10px] font-black text-white">{orderData.quantity}</span>
+                                  <button 
+                                    type="button"
+                                    onClick={() => setOrderData({...orderData, quantity: orderData.quantity + 1})}
+                                    className="p-3 hover:bg-white/5 text-[#00c2ff]"
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
+                              <input 
+                                required
+                                type="email"
+                                value={orderData.email}
+                                onChange={e => setOrderData({...orderData, email: e.target.value})}
+                                placeholder="your@email.com"
+                                className="w-full bg-black border border-white/10 py-4 px-6 rounded-2xl text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Shipping Address</label>
+                              <textarea 
+                                required
+                                value={orderData.address}
+                                onChange={e => setOrderData({...orderData, address: e.target.value})}
+                                placeholder="Street, City, Zip, Country"
+                                className="w-full bg-black border border-white/10 py-4 px-6 rounded-2xl text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase min-h-[100px] resize-none"
+                              />
+                            </div>
+
+                            {/* Price Summary */}
+                            <div className="mt-6 p-6 bg-white/5 rounded-2xl border border-white/10 space-y-3">
+                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                <span className="text-slate-500">Unit Price</span>
+                                <span className="text-white">
+                                  ${orderData.format === 'coloring' ? '15.00' : 
+                                    orderData.format === 'board' ? '24.99' : 
+                                    orderData.format === 'soft_photo' ? '34.99' : '49.99'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                <span className="text-slate-500">Quantity</span>
+                                <span className="text-white">x{orderData.quantity}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                <span className="text-slate-500">Shipping</span>
+                                <span className={shippingCost > 0 ? "text-[#00c2ff]" : "text-slate-600"}>
+                                  {shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : 'Enter Address'}
+                                </span>
+                              </div>
+                              <div className="h-px bg-white/10 my-2" />
+                              <div className="flex justify-between items-center">
+                                <div className="space-y-1">
+                                  <span className="block text-[11px] font-black text-white uppercase tracking-widest">Total</span>
+                                  <span className="block text-[8px] text-emerald-400 font-black uppercase tracking-widest">
+                                    Est. Delivery: 1 Week Min.
+                                  </span>
+                                </div>
+                                <span className="text-xl font-black text-[#00c2ff]">
+                                  ${(
+                                    (orderData.format === 'coloring' ? 15.00 : 
+                                     orderData.format === 'board' ? 24.99 : 
+                                     orderData.format === 'soft_photo' ? 34.99 : 49.99) * orderData.quantity + shippingCost
+                                  ).toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button type="submit" className="w-full bg-[#00c2ff] text-black py-5 rounded-2xl font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-[0_0_30px_rgba(0,194,255,0.2)] flex items-center justify-center gap-3">
+                            <CreditCard size={18} />
+                            Buy Now
+                          </button>
+                          <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest text-center">
+                            Your order will be processed and shipped directly to you.
+                          </p>
+                        </form>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
           </div>
