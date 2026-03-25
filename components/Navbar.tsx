@@ -967,6 +967,32 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                     </ul>
                   </div>
 
+                  <div className="space-y-4 pt-6 border-t border-white/5">
+                    <p className="text-[#00c2ff] font-black uppercase tracking-widest text-[9px] md:text-[10px]">Tech_Stack:</p>
+                    <div className="flex flex-wrap gap-x-6 gap-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1 h-1 bg-white/20 rounded-full" />
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">React 19 / Vite</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-1 h-1 bg-white/20 rounded-full" />
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Supabase DB</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-1 h-1 bg-white/20 rounded-full" />
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tailwind CSS</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-1 h-1 bg-white/20 rounded-full" />
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Motion / Lucide</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-1 h-1 bg-white/20 rounded-full" />
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Stripe Nexus</span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex flex-col gap-1">
                       <span className="text-[8px] font-black text-slate-700 uppercase tracking-[0.3em]">Build_Version: 2.8.5-STABLE</span>
