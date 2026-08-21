@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { BookMetadata, Comment } from '../types';
 import { getBookMetadata, incrementBookReads, incrementBookUpvotes, getComments, addComment, checkUserUpvote, checkUserCommented } from '../services/db';
+import { getDeviceId } from '../services/deviceId';
 import Footer from './Footer';
 import { 
   Eye, 
@@ -19,15 +20,6 @@ import {
   Zap
 } from 'lucide-react';
 
-const getDeviceId = () => {
-  let id = localStorage.getItem('ZETSU_DEVICE_ID');
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem('ZETSU_DEVICE_ID', id);
-  }
-  return id;
-};
-
 const SocialPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [book, setBook] = useState<BookMetadata | null>(null);
@@ -42,6 +34,7 @@ const SocialPage: React.FC = () => {
   const [newComment, setNewComment] = useState('');
   const [commentAuthor, setCommentAuthor] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -88,14 +81,16 @@ const SocialPage: React.FC = () => {
 
     const deviceId = getDeviceId();
     setIsSubmittingComment(true);
+    setCommentError(null);
     try {
       await addComment(id, commentAuthor, newComment, deviceId);
       const updatedComments = await getComments(id);
       setComments(updatedComments);
       setNewComment('');
       setHasCommented(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to add comment:', err);
+      setCommentError(err?.message || 'Comment could not be posted.');
     } finally {
       setIsSubmittingComment(false);
     }
@@ -242,6 +237,9 @@ const SocialPage: React.FC = () => {
                       className="w-full bg-black border border-white/10 p-4 rounded-xl text-[10px] font-mono text-slate-300 focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase resize-none"
                     />
                   </div>
+                  {commentError && (
+                    <p className="text-[9px] font-bold text-red-400 uppercase tracking-wide leading-normal">{commentError}</p>
+                  )}
                   <button 
                     type="submit" 
                     disabled={isSubmittingComment}

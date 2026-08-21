@@ -5,18 +5,10 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { processPdfForStore } from '../services/pdfService';
 import { saveBook, getUserUploadCount, getUserCredits, getAllMetadata, saveOrderToArchive } from '../services/db';
+import { getDeviceId, getDeviceIdHistory } from '../services/deviceId';
 import { BookMetadata, BookData } from '../types';
 import { Crown } from 'lucide-react';
 import PricingModal from './PricingModal';
-
-const getDeviceId = () => {
-  let id = localStorage.getItem('zetsu_device_id');
-  if (!id) {
-    id = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    localStorage.setItem('zetsu_device_id', id);
-  }
-  return id;
-};
 
 interface NavbarProps {
   searchQuery?: string;
@@ -48,6 +40,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'uploading' | 'success' | 'error'>('idle');
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [pdfInfo, setPdfInfo] = useState<any>(null);
   const [formData, setFormData] = useState({ title: '', author: '', genre: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -65,15 +58,16 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
 
     const deviceId = getDeviceId();
     const { isPremium: premiumStatus } = await getUserCredits(deviceId);
-    const uploadCount = await getUserUploadCount(deviceId);
-    
+    const uploadCount = await getUserUploadCount(getDeviceIdHistory());
+
     if (!premiumStatus && uploadCount >= 5) {
       setUploadStatus('error');
-      alert("OM_G! Your archival sector is full! 📚 You've reached the 5-book limit for free archivists. ✨ Upgrade to PREMIUM for unlimited uploads! 🚀");
+      setUploadError("Your archival sector is full — free archivists get 5 books. Upgrade to PREMIUM for unlimited uploads.");
       return;
     }
 
     setUploadStatus('processing');
+    setUploadError(null);
     try {
       const info = await processPdfForStore(file);
       setPdfInfo(info);
@@ -81,7 +75,9 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       setFormData(prev => ({ ...prev, title: initialTitle }));
       setUploadStatus('idle');
     } catch (err) {
+      console.error('Failed to read PDF:', err);
       setUploadStatus('error');
+      setUploadError("That PDF could not be read. Try re-exporting it, or pick a different file.");
     }
   };
 
@@ -90,6 +86,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
     if (!pdfInfo || !formData.title || !formData.author || !formData.genre) return;
     
     setUploadStatus('uploading');
+    setUploadError(null);
     try {
       const deviceId = getDeviceId();
       const id = crypto.randomUUID().split('-')[0];
@@ -115,8 +112,10 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       setTimeout(() => {
         window.location.reload();
       }, 2000);
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Upload failed:', err);
       setUploadStatus('error');
+      setUploadError(err?.message || "Upload failed. The archive rejected the deployment.");
     }
   };
 
@@ -155,9 +154,9 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       });
       const session = await response.json();
       if (session.url) window.location.href = session.url;
-    } catch (err) {
-      console.error(err);
-      alert("Order initialization failed. Bitstream unstable.");
+    } catch (err: any) {
+      console.error('Order failed:', err);
+      alert(`Order initialization failed: ${err?.message || 'Bitstream unstable.'}`);
     }
   };
 
@@ -383,6 +382,13 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       <X size={20} />
                     </button>
                   </div>
+
+                  {uploadError && (
+                    <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30">
+                      <p className="text-[9px] font-black text-red-400 uppercase tracking-widest mb-1">Deployment Rejected</p>
+                      <p className="text-[10px] text-red-200/80 font-bold leading-normal">{uploadError}</p>
+                    </div>
+                  )}
 
                   <AnimatePresence mode="wait">
                     {uploadStatus === 'success' ? (
