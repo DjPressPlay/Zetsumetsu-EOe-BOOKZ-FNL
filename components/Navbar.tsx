@@ -1,13 +1,49 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Info, X, Send, ChevronDown, Fingerprint, Cpu, Zap, FileText, Sparkles, Loader2, Image as ImageIcon, ShoppingBag, Truck, Package, CreditCard, Minus, Plus } from 'lucide-react';
+import { 
+  Search, 
+  Info, 
+  X, 
+  Send, 
+  ChevronDown, 
+  Fingerprint, 
+  Cpu, 
+  Zap, 
+  FileText, 
+  Sparkles, 
+  Loader2, 
+  Image as ImageIcon, 
+  ShoppingBag, 
+  Truck, 
+  Package, 
+  CreditCard, 
+  Minus, 
+  Plus, 
+  Crown,
+  HardDrive,
+  UploadCloud,
+  AlertTriangle,
+  CheckCircle2,
+  Layers,
+  Flame,
+  ShieldAlert,
+  ArrowRight
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { processPdfForStore } from '../services/pdfService';
-import { saveBook, getUserUploadCount, getUserCredits, getAllMetadata, saveOrderToArchive } from '../services/db';
+import { 
+  saveBook, 
+  getUserUploadCount, 
+  getUserCredits, 
+  getAllMetadata, 
+  saveOrderToArchive, 
+  getUserQuota, 
+  UserQuota, 
+  FREE_UPLOAD_LIMIT 
+} from '../services/db';
 import { getDeviceId, getDeviceIdHistory } from '../services/deviceId';
 import { BookMetadata, BookData } from '../types';
-import { Crown } from 'lucide-react';
 import PricingModal from './PricingModal';
 
 interface NavbarProps {
@@ -24,6 +60,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [isRequestOpen, setIsRequestOpen] = useState(false);
+  const [isQuotaPopoverOpen, setIsQuotaPopoverOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
   const [shopSearch, setShopSearch] = useState("");
   const [selectedBook, setSelectedBook] = useState<BookMetadata | null>(null);
@@ -39,30 +76,93 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const [shippingCost, setShippingCost] = useState(0);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+  const [quota, setQuota] = useState<UserQuota>({
+    uploadCount: 0,
+    maxFreeUploads: FREE_UPLOAD_LIMIT,
+    remainingUploads: FREE_UPLOAD_LIMIT,
+    isPremium: false,
+    credits: 10
+  });
+  const [toastNotification, setToastNotification] = useState<{
+    id: string;
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+  } | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [pdfInfo, setPdfInfo] = useState<any>(null);
   const [formData, setFormData] = useState({ title: '', author: '', genre: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Fetch premium status and books
+  const showToast = (title: string, message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    setToastNotification({ id: Date.now().toString(), title, message, type });
+  };
+
+  const refreshUserData = async () => {
+    try {
+      const quotaData = await getUserQuota();
+      setQuota(quotaData);
+      setIsPremium(quotaData.isPremium);
+    } catch (err) {
+      console.error('Failed to load quota:', err);
+    }
+  };
+
+  // Fetch premium status, quota and books
   useEffect(() => {
-    const deviceId = getDeviceId();
-    getUserCredits(deviceId).then(data => setIsPremium(data.isPremium));
+    refreshUserData();
     getAllMetadata().then(setAllBooks);
+
+    const handleQuotaUpdate = () => {
+      refreshUserData();
+    };
+
+    window.addEventListener('zetsu-quota-updated', handleQuotaUpdate);
+    window.addEventListener('show-quota-modal', () => setIsQuotaPopoverOpen(true));
+
+    return () => {
+      window.removeEventListener('zetsu-quota-updated', handleQuotaUpdate);
+      window.removeEventListener('show-quota-modal', () => setIsQuotaPopoverOpen(true));
+    };
   }, []);
+
+  // Auto-dismiss toast after 6 seconds
+  useEffect(() => {
+    if (!toastNotification) return;
+    const timer = setTimeout(() => {
+      setToastNotification(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [toastNotification]);
+
+  // Close quota popover on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setIsQuotaPopoverOpen(false);
+      }
+    };
+    if (isQuotaPopoverOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isQuotaPopoverOpen]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const deviceId = getDeviceId();
-    const { isPremium: premiumStatus } = await getUserCredits(deviceId);
-    const uploadCount = await getUserUploadCount(getDeviceIdHistory());
+    const currentQuota = await getUserQuota();
+    setQuota(currentQuota);
 
-    if (!premiumStatus && uploadCount >= 5) {
+    if (!currentQuota.isPremium && currentQuota.remainingUploads <= 0) {
       setUploadStatus('error');
-      setUploadError("Your archival sector is full — free archivists get 5 books. Upgrade to PREMIUM for unlimited uploads.");
+      setUploadError("Your archival sector is full (0/5 free slots remaining). Upgrade to PREMIUM for unlimited uploads.");
+      showToast("Archival Quota Reached", "Free archivists receive 5 books. Upgrade to Premium for unlimited storage.", "warning");
       return;
     }
 
@@ -103,15 +203,41 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       };
       const data: BookData = { id, pdfData: pdfInfo.pdfData };
       await saveBook(metadata, data, deviceId);
+      
+      // Refresh quota immediately
+      const newQuota = await getUserQuota();
+      setQuota(newQuota);
+      window.dispatchEvent(new CustomEvent('zetsu-quota-updated', { detail: newQuota }));
+      
       setUploadStatus('success');
-      
-      // Update local books list
       setAllBooks(prev => [metadata, ...prev]);
+
+      if (!newQuota.isPremium) {
+        if (newQuota.remainingUploads === 0) {
+          showToast(
+            "Archive Node Minted!",
+            "You have used all 5 free archival slots. Upgrade to Premium for unlimited uploads.",
+            "warning"
+          );
+        } else {
+          showToast(
+            "Archive Node Minted!",
+            `Deployment successful. You have ${newQuota.remainingUploads} of 5 free uploads remaining.`,
+            "success"
+          );
+        }
+      } else {
+        showToast(
+          "Archive Node Minted!",
+          "Deployment complete. Premium unlimited storage active.",
+          "success"
+        );
+      }
       
-      // Refresh the page or trigger a global refresh
+      // Refresh the page or trigger a global refresh after viewing success
       setTimeout(() => {
         window.location.reload();
-      }, 2000);
+      }, 2400);
     } catch (err: any) {
       console.error('Upload failed:', err);
       setUploadStatus('error');
@@ -241,14 +367,197 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
 
             {/* Actions Section */}
             {!isMobileSearchOpen && (
-              <div className="flex items-center gap-2 md:gap-6">
+              <div className="flex items-center gap-2 md:gap-4">
                 <button 
                   onClick={() => setIsMobileSearchOpen(true)}
                   className="md:hidden p-2 text-slate-400 hover:text-[#00c2ff] transition-colors"
+                  title="Search Archives"
                 >
                   <Search size={18} />
                 </button>
                 
+                {/* Live Upload Quota Badge & Dropdown */}
+                <div className="relative" ref={popoverRef}>
+                  {quota.isPremium ? (
+                    <button 
+                      onClick={() => setIsQuotaPopoverOpen(prev => !prev)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 md:py-2 bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 hover:from-amber-500/20 hover:to-indigo-500/20 border border-amber-400/30 rounded-full transition-all group shadow-[0_0_15px_rgba(251,191,36,0.15)]"
+                      title="Archival Status: Premium Unlimited"
+                    >
+                      <Crown size={13} className="text-amber-400 fill-amber-400 shrink-0" />
+                      <span className="text-[9px] md:text-[10px] font-black text-amber-300 tracking-wider">
+                        UNLIMITED
+                      </span>
+                      <span className="hidden xl:inline text-[8px] font-bold text-slate-400 uppercase tracking-widest pl-1 border-l border-white/10">
+                        PRO
+                      </span>
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => setIsQuotaPopoverOpen(prev => !prev)}
+                      className={`flex items-center gap-2 px-2.5 sm:px-3.5 py-1.5 md:py-2 rounded-full border transition-all ${
+                        quota.remainingUploads === 0
+                          ? 'bg-red-950/40 border-red-500/40 text-red-300 hover:bg-red-900/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
+                          : quota.remainingUploads === 1
+                          ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 hover:bg-amber-900/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                          : 'bg-[#0a0f14] border-[#00c2ff]/30 text-white hover:border-[#00c2ff]/60 hover:bg-[#00c2ff]/5'
+                      }`}
+                      title={`Upload Allowance: ${quota.remainingUploads} of ${quota.maxFreeUploads} slots remaining`}
+                    >
+                      {/* Segmented Slot Indicators */}
+                      <div className="flex items-center gap-1">
+                        {[0, 1, 2, 3, 4].map(idx => (
+                          <div 
+                            key={idx}
+                            className={`w-1.5 h-1.5 rounded-full transition-all ${
+                              idx < quota.uploadCount 
+                                ? quota.remainingUploads === 0 ? 'bg-red-500' : 'bg-[#00c2ff] shadow-[0_0_6px_#00c2ff]' 
+                                : 'bg-white/10 border border-white/20'
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-black tracking-wider">
+                        <span className={quota.remainingUploads === 0 ? 'text-red-400' : quota.remainingUploads === 1 ? 'text-amber-400' : 'text-[#00c2ff]'}>
+                          {quota.remainingUploads}/{quota.maxFreeUploads}
+                        </span>
+                        <span className="hidden sm:inline uppercase text-slate-400 text-[8px] font-bold tracking-widest">
+                          {quota.remainingUploads === 1 ? 'SLOT' : 'SLOTS'}
+                        </span>
+                      </div>
+
+                      {quota.remainingUploads === 0 && (
+                        <span className="hidden sm:inline bg-red-500 text-black text-[7px] font-black uppercase px-1.5 py-0.5 rounded tracking-widest ml-0.5">
+                          MAX
+                        </span>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Interactive Quota Breakdown Popover */}
+                  <AnimatePresence>
+                    {isQuotaPopoverOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-[#0c0c0e] border border-white/15 rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_30px_rgba(0,194,255,0.1)] z-50 backdrop-blur-xl"
+                      >
+                        <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                          <div className="flex items-center gap-2">
+                            <HardDrive size={14} className="text-[#00c2ff]" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white">Archival Storage</span>
+                          </div>
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                            quota.isPremium ? 'bg-amber-400/10 text-amber-300 border border-amber-400/20' : 'bg-white/5 text-slate-400 border border-white/10'
+                          }`}>
+                            {quota.isPremium ? '👑 PREMIUM TIER' : 'FREE TIER'}
+                          </span>
+                        </div>
+
+                        <div className="py-3.5 space-y-3">
+                          {quota.isPremium ? (
+                            <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/10 to-purple-500/10 border border-amber-500/20">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Crown size={14} className="text-amber-400 fill-amber-400" />
+                                <span className="text-[11px] font-black uppercase tracking-wide text-white">Unlimited Storage</span>
+                              </div>
+                              <p className="text-[9px] text-slate-300 font-medium leading-relaxed">
+                                You have unlocked unlimited PDF uploads to the Zetsu network with permanent global hosting.
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Slot Meter Bar */}
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-center text-[9px] font-mono font-bold uppercase">
+                                  <span className="text-slate-400">Slots Used</span>
+                                  <span className="text-white">{quota.uploadCount} of {quota.maxFreeUploads} Books</span>
+                                </div>
+                                
+                                {/* Visual 5-block row */}
+                                <div className="grid grid-cols-5 gap-1.5 py-1">
+                                  {[0, 1, 2, 3, 4].map(idx => {
+                                    const isUsed = idx < quota.uploadCount;
+                                    return (
+                                      <div 
+                                        key={idx}
+                                        className={`h-7 rounded-lg border flex flex-col items-center justify-center transition-all ${
+                                          isUsed 
+                                            ? 'bg-[#00c2ff]/15 border-[#00c2ff]/50 text-[#00c2ff]' 
+                                            : 'bg-white/5 border-dashed border-white/15 text-slate-600'
+                                        }`}
+                                      >
+                                        <span className="text-[8px] font-mono font-black">{idx + 1}</span>
+                                        <span className="text-[6px] uppercase font-bold tracking-tighter">
+                                          {isUsed ? 'USED' : 'FREE'}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              <div className={`p-2.5 rounded-xl border text-[9px] leading-relaxed font-bold ${
+                                quota.remainingUploads === 0
+                                  ? 'bg-red-500/10 border-red-500/30 text-red-200'
+                                  : quota.remainingUploads === 1
+                                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                                  : 'bg-[#00c2ff]/10 border-[#00c2ff]/20 text-slate-300'
+                              }`}>
+                                {quota.remainingUploads === 0 ? (
+                                  <p className="flex items-center gap-1.5">
+                                    <AlertTriangle size={14} className="text-red-400 shrink-0" />
+                                    <span>All 5 free slots filled. Upgrade to publish more.</span>
+                                  </p>
+                                ) : quota.remainingUploads === 1 ? (
+                                  <p className="flex items-center gap-1.5">
+                                    <AlertTriangle size={14} className="text-amber-400 shrink-0" />
+                                    <span>1 upload slot remaining on your free tier.</span>
+                                  </p>
+                                ) : (
+                                  <p className="flex items-center gap-1.5">
+                                    <CheckCircle2 size={14} className="text-[#00c2ff] shrink-0" />
+                                    <span>You have {quota.remainingUploads} free uploads left.</span>
+                                  </p>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
+                          {!quota.isPremium && (
+                            <button
+                              onClick={() => {
+                                setIsQuotaPopoverOpen(false);
+                                setIsPricingOpen(true);
+                              }}
+                              className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+                            >
+                              <Crown size={12} className="fill-white" />
+                              Upgrade to Unlimited ($19.99)
+                            </button>
+                          )}
+                          
+                          <button
+                            onClick={() => {
+                              setIsQuotaPopoverOpen(false);
+                              setIsRequestOpen(true);
+                            }}
+                            className="w-full py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 border border-white/10 transition-all"
+                          >
+                            <Send size={11} />
+                            Open Upload Terminal
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
                 <div className="flex items-center gap-2 md:gap-4">
                   {!isPremium && (
                     <button 
@@ -383,6 +692,61 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                     </button>
                   </div>
 
+                  {/* Live Capacity Monitor Box */}
+                  <div className="mb-6 p-4 rounded-2xl bg-black/60 border border-white/10 space-y-3 shadow-inner">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <HardDrive size={14} className="text-[#00c2ff]" />
+                        <span className="text-[10px] font-black uppercase tracking-wider text-white">Archival Quota</span>
+                      </div>
+                      <span className={`text-[8px] font-black font-mono uppercase px-2.5 py-0.5 rounded-full ${
+                        quota.isPremium 
+                          ? 'bg-amber-400/10 text-amber-300 border border-amber-400/20' 
+                          : quota.remainingUploads === 0 
+                          ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                          : quota.remainingUploads === 1
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          : 'bg-[#00c2ff]/10 text-[#00c2ff] border border-[#00c2ff]/30'
+                      }`}>
+                        {quota.isPremium 
+                          ? '👑 UNLIMITED STORAGE' 
+                          : `${quota.remainingUploads} OF ${quota.maxFreeUploads} SLOTS REMAINING`}
+                      </span>
+                    </div>
+
+                    {/* 5-slot visual progress nodes */}
+                    {!quota.isPremium && (
+                      <div className="space-y-1.5">
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {[0, 1, 2, 3, 4].map(idx => {
+                            const isUsed = idx < quota.uploadCount;
+                            return (
+                              <div 
+                                key={idx}
+                                className={`py-1.5 rounded-lg border text-center transition-all flex flex-col items-center justify-center ${
+                                  isUsed
+                                    ? 'bg-[#00c2ff]/15 border-[#00c2ff]/40 text-[#00c2ff]'
+                                    : 'bg-white/5 border-dashed border-white/15 text-slate-500'
+                                }`}
+                              >
+                                <span className="text-[8px] font-mono font-bold">SLOT {idx + 1}</span>
+                                <span className="text-[6px] font-black uppercase tracking-tight">
+                                  {isUsed ? 'OCCUPIED' : 'OPEN'}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-widest text-slate-500 pt-0.5">
+                          <span>Free Tier (5 Books Max)</span>
+                          <span className={quota.remainingUploads === 0 ? 'text-red-400 font-black' : quota.remainingUploads === 1 ? 'text-amber-400 font-black' : 'text-slate-400'}>
+                            {quota.remainingUploads === 0 ? 'Quota Depleted' : `${quota.remainingUploads} Left`}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {uploadError && (
                     <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30">
                       <p className="text-[9px] font-black text-red-400 uppercase tracking-widest mb-1">Deployment Rejected</p>
@@ -402,9 +766,41 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                           <Zap className="text-[#00c2ff]" size={32} />
                         </div>
                         <h3 className="text-xl font-black text-white uppercase italic">Archive Synced</h3>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest max-w-[200px] mx-auto">
-                          Deployment complete. Re-initializing network view...
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest max-w-[240px] mx-auto">
+                          {quota.isPremium 
+                            ? "Deployment complete. Premium unlimited storage active."
+                            : `Deployment complete. ${quota.remainingUploads} of ${quota.maxFreeUploads} free upload slots remaining.`}
                         </p>
+                      </motion.div>
+                    ) : (!quota.isPremium && quota.remainingUploads <= 0 && !pdfInfo) ? (
+                      <motion.div 
+                        key="limit-reached"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="border-2 border-red-500/30 rounded-[2rem] p-8 text-center bg-red-950/20 backdrop-blur-md space-y-4"
+                      >
+                        <div className="w-14 h-14 mx-auto rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 shadow-[0_0_25px_rgba(239,68,68,0.2)]">
+                          <ShieldAlert size={28} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-white uppercase tracking-wider text-sm mb-1.5">Free Archival Limit Reached</h4>
+                          <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-sm mx-auto">
+                            You have uploaded the maximum of 5 free books allowed on this node. Upgrade to a Premium Archivist to publish unlimited books, unlock priority indexing, and obtain a verified badge.
+                          </p>
+                        </div>
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsRequestOpen(false);
+                              setIsPricingOpen(true);
+                            }}
+                            className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all flex items-center justify-center gap-2"
+                          >
+                            <Crown size={14} className="fill-white" />
+                            Unlock Unlimited Uploads ($19.99)
+                          </button>
+                        </div>
                       </motion.div>
                     ) : uploadStatus === 'uploading' ? (
                       <motion.div 
@@ -440,7 +836,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         <input type="file" ref={fileInputRef} className="hidden" accept=".pdf" onChange={handleFileSelect} />
                         <FileText size={48} className="mx-auto mb-4 text-slate-700 group-hover:text-[#00c2ff] transition-colors" />
                         <p className="font-black text-white uppercase tracking-widest text-xs mb-2">Select PDF Artifact</p>
-                        <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">Max 50MB per node</p>
+                        <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">Max 50MB per node • {quota.remainingUploads} slots remaining</p>
                       </motion.div>
                     ) : (
                       <motion.form 
@@ -1015,6 +1411,50 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
           </div>
         )}
       </AnimatePresence>
+      {/* Live Floating Toast Notification */}
+      <AnimatePresence>
+        {toastNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-[120] max-w-md w-[calc(100vw-3rem)] bg-[#0c0c10]/95 border border-white/15 rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(0,194,255,0.15)] backdrop-blur-2xl"
+          >
+            <div className="flex items-start gap-3.5">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                toastNotification.type === 'error'
+                  ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                  : toastNotification.type === 'warning'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                  : toastNotification.type === 'success'
+                  ? 'bg-[#00c2ff]/10 border-[#00c2ff]/30 text-[#00c2ff]'
+                  : 'bg-white/10 border-white/20 text-white'
+              }`}>
+                {toastNotification.type === 'error' && <AlertTriangle size={18} />}
+                {toastNotification.type === 'warning' && <AlertTriangle size={18} />}
+                {toastNotification.type === 'success' && <CheckCircle2 size={18} />}
+                {toastNotification.type === 'info' && <HardDrive size={18} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h5 className="text-[11px] font-black uppercase tracking-wider text-white mb-0.5">
+                  {toastNotification.title}
+                </h5>
+                <p className="text-[10px] text-slate-400 font-bold leading-normal">
+                  {toastNotification.message}
+                </p>
+              </div>
+              <button
+                onClick={() => setToastNotification(null)}
+                className="p-1 text-slate-500 hover:text-white rounded-lg transition-colors"
+                title="Dismiss Notification"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <PricingModal 
         isOpen={isPricingOpen} 
         onClose={() => setIsPricingOpen(false)} 

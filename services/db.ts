@@ -1,8 +1,18 @@
 
 import { getSupabase } from './supabase';
 import { BookMetadata, BookData, Comment } from '../types';
+import { getDeviceId, getDeviceIdHistory } from './deviceId';
 
 const BUCKET_NAME = 'bookz';
+export const FREE_UPLOAD_LIMIT = 5;
+
+export interface UserQuota {
+  uploadCount: number;
+  maxFreeUploads: number;
+  remainingUploads: number;
+  isPremium: boolean;
+  credits: number;
+}
 
 /**
  * Internal helper to ensure client exists before operations
@@ -386,6 +396,23 @@ export const getUserUploadCount = async (userIds: string | string[]): Promise<nu
     return 0;
   }
   return count || 0;
+};
+
+export const getUserQuota = async (): Promise<UserQuota> => {
+  const deviceId = getDeviceId();
+  const history = getDeviceIdHistory();
+  const creditsData = await getUserCredits(deviceId);
+  const uploadCount = await getUserUploadCount(history);
+  const maxFreeUploads = FREE_UPLOAD_LIMIT;
+  const remainingUploads = creditsData.isPremium ? Infinity : Math.max(0, maxFreeUploads - uploadCount);
+
+  return {
+    uploadCount,
+    maxFreeUploads,
+    remainingUploads,
+    isPremium: creditsData.isPremium,
+    credits: creditsData.credits
+  };
 };
 
 export const subscribeToNewsletter = async (email: string): Promise<void> => {

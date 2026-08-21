@@ -11,7 +11,7 @@ import Archive from './components/Archive';
 import NewsletterCTA from './components/NewsletterCTA';
 import Footer from './components/Footer';
 import Walkthrough from './components/Walkthrough';
-import { getAllMetadata, trackVisit, getNetworkStats, NetworkStats } from './services/db';
+import { getAllMetadata, trackVisit, getNetworkStats, NetworkStats, getUserQuota, UserQuota } from './services/db';
 import { getSupabase } from './services/supabase';
 import { AlertCircle, Copy, Check, Search, Activity, Zap } from 'lucide-react';
 
@@ -122,9 +122,25 @@ CREATE POLICY "Public Update Metrics" ON site_metrics FOR ALL USING (true);`;
 };
 
 const SystemMetrics: React.FC<{ stats: NetworkStats | null }> = ({ stats }) => {
+  const [quota, setQuota] = useState<UserQuota | null>(null);
+
+  useEffect(() => {
+    getUserQuota().then(setQuota).catch(() => {});
+    const onQuotaChange = () => {
+      getUserQuota().then(setQuota).catch(() => {});
+    };
+    window.addEventListener('zetsu-quota-updated', onQuotaChange);
+    return () => window.removeEventListener('zetsu-quota-updated', onQuotaChange);
+  }, []);
+
   if (!stats) return null;
 
   const items = [
+    ...(quota ? [{
+      label: 'YOUR_CAPACITY',
+      value: quota.isPremium ? 'UNLIMITED' : `${quota.remainingUploads}/${quota.maxFreeUploads} LEFT`,
+      highlight: true
+    }] : []),
     { label: 'NETWORK_VISITS', value: stats.visits.toString().padStart(6, '0') },
     { label: 'ARCHIVES_MINTED', value: stats.books.toString().padStart(4, '0') },
     { label: 'GENRE_SECTORS', value: stats.genres.toString().padStart(2, '0') },
@@ -139,11 +155,17 @@ const SystemMetrics: React.FC<{ stats: NetworkStats | null }> = ({ stats }) => {
           <div className="w-1.5 h-1.5 rounded-full bg-[#00c2ff] animate-pulse" />
           <span className="text-[9px] font-black text-[#00c2ff] uppercase tracking-[0.3em]">LIVE_FEED</span>
         </div>
-        <div className="flex items-center gap-8 md:gap-12 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-6 md:gap-10 overflow-x-auto no-scrollbar">
           {items.map((item, i) => (
-            <div key={i} className="flex items-center gap-3 shrink-0">
-              <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">{item.label}</span>
-              <span className="text-[10px] font-mono text-white bg-white/5 px-2 py-0.5 rounded border border-white/5 tracking-tighter">
+            <div key={i} className="flex items-center gap-2.5 shrink-0">
+              <span className={`text-[8px] font-bold uppercase tracking-widest ${item.highlight ? 'text-[#00c2ff]' : 'text-slate-600'}`}>
+                {item.label}
+              </span>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded border tracking-tighter ${
+                item.highlight
+                  ? 'text-[#00c2ff] bg-[#00c2ff]/10 border-[#00c2ff]/30 font-bold'
+                  : 'text-white bg-white/5 border-white/5'
+              }`}>
                 [{item.value}]
               </span>
             </div>
