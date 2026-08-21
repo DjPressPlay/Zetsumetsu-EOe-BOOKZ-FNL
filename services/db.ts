@@ -15,6 +15,14 @@ const ensureClient = () => {
   return supabase;
 };
 
+/**
+ * Postgres reports an unknown column as 42703; PostgREST reports the same thing as
+ * PGRST204 when it is the schema cache that is behind. Either way the column is not
+ * usable yet, so the caller should degrade instead of throwing.
+ */
+const isMissingColumn = (error: { code?: string } | null): boolean =>
+  error?.code === '42703' || error?.code === 'PGRST204';
+
 export const saveBook = async (metadata: BookMetadata, data: BookData, userId: string): Promise<void> => {
   const supabase = ensureClient();
   
@@ -280,22 +288,36 @@ export const getUserCredits = async (userId: string): Promise<{ credits: number,
   const supabase = getSupabase();
   if (!supabase) return { credits: 0, isPremium: false };
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('user_credits')
     .select('credits, is_premium')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
+
+  // Databases that predate the premium migration have no is_premium column.
+  if (isMissingColumn(error)) {
+    ({ data, error } = await supabase
+      .from('user_credits')
+      .select('credits')
+      .eq('user_id', userId)
+      .maybeSingle());
+  }
 
   if (error) {
-    // If not found, create with default 10
-    if (error.code === 'PGRST116') {
-      await supabase.from('user_credits').insert([{ user_id: userId, credits: 10, is_premium: false }]);
-      return { credits: 10, isPremium: false };
-    }
+    console.error('Failed to read user credits:', error);
     return { credits: 0, isPremium: false };
   }
 
-  return { credits: data.credits, isPremium: data.is_premium };
+  // No row yet: seed the account with the free allowance.
+  if (!data) {
+    const { error: insertError } = await supabase
+      .from('user_credits')
+      .insert([{ user_id: userId, credits: 10 }]);
+    if (insertError) console.error('Failed to create credit account:', insertError);
+    return { credits: 10, isPremium: false };
+  }
+
+  return { credits: data.credits ?? 0, isPremium: (data as { is_premium?: boolean }).is_premium ?? false };
 };
 
 export const deductCredits = async (userId: string, amount: number): Promise<boolean> => {
@@ -310,6 +332,7 @@ export const deductCredits = async (userId: string, amount: number): Promise<boo
     .update({ credits: current - amount })
     .eq('user_id', userId);
 
+  if (error) console.error('Failed to deduct credits:', error);
   return !error;
 };
 
@@ -325,30 +348,43 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
 
   const newCredits = (current?.credits || 0) + amount;
 
-  await supabase
+  const { error } = await supabase
     .from('user_credits')
-    .upsert({ user_id: userId, credits: newCredits, last_updated: new Date().toISOString() }, { onConflict: 'user_id' });
+    .upsert({ user_id: userId, credits: newCredits, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+
+  if (error) console.error('Failed to update credits:', error);
 };
 
 export const updateUserPremium = async (userId: string, isPremium: boolean): Promise<void> => {
   const supabase = getSupabase();
   if (!supabase) return;
 
-  await supabase
+  const { error } = await supabase
     .from('user_credits')
-    .upsert({ user_id: userId, is_premium: isPremium, last_updated: new Date().toISOString() }, { onConflict: 'user_id' });
+    .upsert({ user_id: userId, is_premium: isPremium, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+
+  if (isMissingColumn(error)) {
+    console.error('Cannot store premium status: user_credits.is_premium is missing. Apply supabase/migrations/0001_fix_submission_schema.sql.');
+    return;
+  }
+  if (error) console.error('Failed to update premium status:', error);
 };
 
-export const getUserUploadCount = async (userId: string): Promise<number> => {
+export const getUserUploadCount = async (userIds: string | string[]): Promise<number> => {
   const supabase = getSupabase();
   if (!supabase) return 0;
+
+  const ids = Array.isArray(userIds) ? userIds : [userIds];
 
   const { count, error } = await supabase
     .from('bookz')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId);
+    .in('user_id', ids);
 
-  if (error) return 0;
+  if (error) {
+    console.error('Failed to count uploads:', error);
+    return 0;
+  }
   return count || 0;
 };
 
@@ -373,16 +409,22 @@ export const saveOrderToArchive = async (email: string, orderInfo: string): Prom
   const { error } = await supabase
     .from('newsletter_emails')
     .insert([{ email, order_info: orderInfo }]);
-  
-  if (error) {
-    // If it's a duplicate email, we might want to update it or just insert a new row if the schema allows
-    // Assuming the schema allows multiple entries for the same email or we just ignore the unique constraint for orders
-    const { error: retryError } = await supabase
+
+  if (!error) return;
+  if (error.code === '23505') return; // Address is already archived
+
+  // The order_info column has not been added yet. Keep the address rather than
+  // losing the customer entirely, and never let this block the checkout redirect.
+  if (isMissingColumn(error)) {
+    console.error('newsletter_emails.order_info is missing, so order details were not archived. Apply supabase/migrations/0001_fix_submission_schema.sql.', error);
+    const { error: fallbackError } = await supabase
       .from('newsletter_emails')
-      .insert([{ email: `${email}_order_${Date.now()}`, order_info: orderInfo }]);
-    
-    if (retryError) throw retryError;
+      .insert([{ email }]);
+    if (fallbackError && fallbackError.code !== '23505') throw fallbackError;
+    return;
   }
+
+  throw error;
 };
 
 export const getNewsletterEmails = async (): Promise<{ email: string, signup_date: string, order_info?: string }[]> => {
