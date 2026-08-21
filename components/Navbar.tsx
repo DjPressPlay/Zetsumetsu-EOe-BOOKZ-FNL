@@ -1111,12 +1111,12 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
 
       <AnimatePresence>
         {isShopOpen && (
-          <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-[100] flex items-start justify-center p-3 sm:p-5 md:p-8 overflow-y-auto">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/95 backdrop-blur-3xl" 
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" 
               onClick={() => {
                 setIsShopOpen(false);
                 setSelectedBook(null);
@@ -1124,19 +1124,30 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
               }} 
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.96, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-[#0a0a0a] w-full max-w-5xl rounded-[2.5rem] shadow-2xl border border-white/10 my-auto overflow-hidden flex flex-col max-h-[90vh]"
+              exit={{ opacity: 0, scale: 0.96, y: 15 }}
+              className="relative bg-[#f4efe6] text-stone-800 w-full max-w-5xl rounded-3xl sm:rounded-[2.25rem] shadow-2xl border border-stone-300/90 my-auto overflow-hidden flex flex-col max-h-[92vh]"
             >
-              {/* 1. HEADER */}
-              <div className="p-4 md:p-6 border-b border-white/5 bg-black/60 backdrop-blur-md sticky top-0 z-10 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00c2ff]/10 border border-[#00c2ff]/20">
-                    <ShoppingBag size={12} className="text-[#00c2ff]" />
-                    <span className="text-[9px] font-black text-[#00c2ff] uppercase tracking-widest">Zetsu Bookstore</span>
+              {/* 1. HEADER (Warm, inviting bookstore aesthetic) */}
+              <div className="px-6 py-4 md:px-8 md:py-5 border-b border-stone-300/80 bg-[#ebe3d5] sticky top-0 z-20 flex justify-between items-center shadow-xs">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-600/15 border border-amber-600/30 flex items-center justify-center text-amber-800 shadow-inner">
+                    <ShoppingBag size={20} className="stroke-[2.2]" />
                   </div>
-                  <h2 className="text-lg md:text-xl font-black text-white uppercase italic tracking-tighter">Order Physical Books</h2>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-extrabold tracking-[0.2em] text-amber-800 uppercase">
+                        Zetsu Bookstore
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-200/70 text-amber-900 border border-amber-300">
+                        Print Fulfillment
+                      </span>
+                    </div>
+                    <h2 className="text-base sm:text-xl font-extrabold text-stone-900 tracking-tight">
+                      Author Print Fulfillment — Order Your Copies
+                    </h2>
+                  </div>
                 </div>
                 <button 
                   onClick={() => {
@@ -1144,14 +1155,15 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                     setSelectedBook(null);
                     setOrderStep('selection');
                   }} 
-                  className="p-2 hover:bg-white/5 rounded-full text-slate-500 transition-colors"
+                  className="p-2.5 hover:bg-stone-300/60 rounded-full text-stone-600 hover:text-stone-900 transition-colors"
+                  aria-label="Close Bookstore"
                 >
                   <X size={20} />
                 </button>
               </div>
 
               {/* Shop Content - Scrollable */}
-              <div className="flex-1 overflow-y-auto p-6 md:p-10">
+              <div className="flex-1 overflow-y-auto p-5 sm:p-7 md:p-9 space-y-8">
                 <AnimatePresence mode="wait">
                   {orderStep === 'selection' ? (
                     <motion.div 
@@ -1161,125 +1173,194 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       exit={{ opacity: 0 }}
                       className="space-y-8"
                     >
-                      {/* 2. SEARCH BAR */}
+                      {/* SEARCH BAR */}
                       <div className="relative max-w-2xl mx-auto">
-                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-stone-500" size={18} />
                         <input 
                           type="text"
                           value={shopSearch}
                           onChange={(e) => setShopSearch(e.target.value)}
-                          placeholder="SEARCH THE BOOKSTORE..."
-                          className="w-full bg-black border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase tracking-widest"
+                          placeholder="SEARCH YOUR TITLE..."
+                          className="w-full bg-[#fdfbf7] border-2 border-stone-300 rounded-2xl py-3.5 pl-13 pr-5 text-xs font-bold text-stone-900 placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-4 focus:ring-amber-600/15 shadow-xs transition-all uppercase tracking-wider"
                         />
                       </div>
 
-                      {/* 3. DESCRIPTION (Bulleted) */}
-                      <div className="max-w-3xl mx-auto">
-                        <ul className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] leading-relaxed space-y-2 list-none text-center">
-                          <li className="flex items-center justify-center gap-2">
-                            <span className="w-1 h-1 bg-[#00c2ff] rounded-full" />
-                            High-fidelity print-on-demand process initiated upon order
-                          </li>
-                          <li className="flex items-center justify-center gap-2">
-                            <span className="w-1 h-1 bg-[#00c2ff] rounded-full" />
-                            Professionally printed, bound, and finished to your selection
-                          </li>
-                          <li className="flex items-center justify-center gap-2">
-                            <span className="w-1 h-1 bg-[#00c2ff] rounded-full" />
-                            Secure checkout via Stripe directly to our printing facility
-                          </li>
-                          <li className="flex items-center justify-center gap-2">
-                            <span className="w-1 h-1 bg-[#00c2ff] rounded-full" />
-                            Manufactured and shipped globally to your coordinates
-                          </li>
-                        </ul>
-                      </div>
-
-                      {/* 4. PRICES & SPECS (Consolidated) */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 max-w-5xl mx-auto">
-                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl group hover:border-[#00c2ff]/50 transition-all">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-2">
-                              <Sparkles size={12} className="text-[#00c2ff]" />
-                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Coloring Book style</span>
-                            </div>
-                            <span className="text-sm font-black text-[#00c2ff]">$15</span>
-                          </div>
-                          <div className="space-y-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 8.5" x 11" Standard Size</p>
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 26 Premium White Sheets</p>
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Ideal for Crayons/Markers</p>
-                          </div>
+                      {/* SECTION 1: HOW IT WORKS */}
+                      <div className="bg-[#ebe3d5] border border-stone-300/90 rounded-2xl p-5 md:p-6 shadow-xs max-w-4xl mx-auto">
+                        <div className="flex items-center justify-center gap-2 mb-4">
+                          <Sparkles size={16} className="text-amber-700" />
+                          <h3 className="text-xs sm:text-sm font-black text-stone-900 uppercase tracking-[0.18em]">
+                            HOW IT WORKS
+                          </h3>
                         </div>
-
-                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl group hover:border-purple-500/50 transition-all">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-2">
-                              <Crown size={12} className="text-purple-400" />
-                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Board Book style</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          {[
+                            { num: "1", title: "Print On-Demand", desc: "Initiated the moment you submit your order" },
+                            { num: "2", title: "Pro Finish & Binding", desc: "Professionally printed, bound, and finished to spec" },
+                            { num: "3", title: "Secure Checkout", desc: "Direct Stripe / Marq's routing to printing facility" },
+                            { num: "4", title: "Global Delivery", desc: "Manufactured & shipped directly to your door" }
+                          ].map((step, idx) => (
+                            <div key={idx} className="bg-[#f8f4ec] border border-stone-300/80 rounded-xl p-3.5 text-center shadow-2xs">
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-600 text-stone-50 text-[11px] font-black mb-1.5 shadow-2xs">
+                                {step.num}
+                              </span>
+                              <h4 className="text-[10.5px] font-black text-stone-900 uppercase tracking-tight mb-0.5">{step.title}</h4>
+                              <p className="text-[9px] font-medium text-stone-600 leading-snug">{step.desc}</p>
                             </div>
-                            <span className="text-sm font-black text-purple-400">$24.99</span>
-                          </div>
-                          <div className="space-y-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 1/16” Thick Chipboard</p>
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Matte Lamination Finish</p>
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Safe Rounded Corners</p>
-                          </div>
-                        </div>
-
-                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl group hover:border-emerald-500/50 transition-all">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-2">
-                              <FileText size={12} className="text-emerald-400" />
-                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Softcover Book style</span>
-                            </div>
-                            <span className="text-sm font-black text-emerald-400">$34.99</span>
-                          </div>
-                          <div className="space-y-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 8'' x 8'' Square Format</p>
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 100 lb Semi-Gloss Paper</p>
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Vibrant HD Full-Color</p>
-                          </div>
-                        </div>
-
-                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl group hover:border-indigo-500/50 transition-all">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-2">
-                              <Zap size={12} className="text-indigo-400" />
-                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Hardcover Book style</span>
-                            </div>
-                            <span className="text-sm font-black text-indigo-400">$49.99</span>
-                          </div>
-                          <div className="space-y-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• 11'' x 8.5'' / 8'' x 8''</p>
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Glossy or Matte Finish</p>
-                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">• Professional Binding</p>
-                          </div>
+                          ))}
                         </div>
                       </div>
 
-                      {/* 5. BOOKS GRID */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pt-4 border-t border-white/5">
-                        {filteredShopBooks.map((book) => (
-                          <motion.div 
-                            key={book.id}
-                            whileHover={{ y: -5 }}
-                            onClick={() => {
-                              setSelectedBook(book);
-                              setOrderStep('form');
-                            }}
-                            className="group cursor-pointer"
-                          >
-                            <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5 group-hover:border-[#00c2ff]/50 transition-all shadow-xl">
-                              <img src={book.thumbnail} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={book.title} />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                                <span className="text-[9px] font-black text-[#00c2ff] uppercase tracking-widest">Order Now</span>
+                      {/* SECTION 2: SELECT YOUR PRINT FORMAT */}
+                      <div className="max-w-5xl mx-auto">
+                        <div className="text-center mb-4">
+                          <h3 className="text-xs sm:text-sm font-black text-stone-900 uppercase tracking-[0.18em]">
+                            SELECT YOUR PRINT FORMAT
+                          </h3>
+                          <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mt-0.5">
+                            Choose how your book gets printed
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                          {/* Coloring Book */}
+                          <div className="p-4 bg-[#f8f4ec] border-2 border-stone-300 hover:border-sky-500 rounded-2xl transition-all shadow-xs hover:shadow-md flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between items-start mb-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="p-1.5 rounded-lg bg-sky-100 text-sky-700 border border-sky-300">
+                                    <Sparkles size={13} />
+                                  </span>
+                                  <span className="text-[10px] font-black text-stone-900 uppercase tracking-wider">Coloring Book</span>
+                                </div>
+                                <span className="text-base font-black text-sky-700">$15</span>
                               </div>
+                              <p className="text-[9.5px] font-semibold text-stone-700 leading-relaxed mb-3">
+                                8.5"×11", 26 sheets, crayon/marker-ready uncoated interior.
+                              </p>
                             </div>
-                            <h4 className="text-[10px] font-black text-white uppercase truncate mb-1">{book.title}</h4>
-                            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{book.author}</p>
-                          </motion.div>
-                        ))}
+                            <div className="space-y-1 pt-2 border-t border-stone-300/60 text-[8.5px] font-bold text-stone-500 uppercase tracking-wider">
+                              <p>• Standard Coloring Size</p>
+                              <p>• Flexible Soft Cover</p>
+                            </div>
+                          </div>
+
+                          {/* Board Book */}
+                          <div className="p-4 bg-[#f8f4ec] border-2 border-stone-300 hover:border-purple-500 rounded-2xl transition-all shadow-xs hover:shadow-md flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between items-start mb-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="p-1.5 rounded-lg bg-purple-100 text-purple-700 border border-purple-300">
+                                    <Crown size={13} />
+                                  </span>
+                                  <span className="text-[10px] font-black text-stone-900 uppercase tracking-wider">Board Book</span>
+                                </div>
+                                <span className="text-base font-black text-purple-700">$24.99</span>
+                              </div>
+                              <p className="text-[9.5px] font-semibold text-stone-700 leading-relaxed mb-3">
+                                1/16" chipboard, matte lam, rounded child-safe corners.
+                              </p>
+                            </div>
+                            <div className="space-y-1 pt-2 border-t border-stone-300/60 text-[8.5px] font-bold text-stone-500 uppercase tracking-wider">
+                              <p>• Heavy Duty Chipboard</p>
+                              <p>• Fingerprint-Resistant</p>
+                            </div>
+                          </div>
+
+                          {/* Softcover */}
+                          <div className="p-4 bg-[#f8f4ec] border-2 border-stone-300 hover:border-emerald-600 rounded-2xl transition-all shadow-xs hover:shadow-md flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between items-start mb-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-300">
+                                    <FileText size={13} />
+                                  </span>
+                                  <span className="text-[10px] font-black text-stone-900 uppercase tracking-wider">Softcover</span>
+                                </div>
+                                <span className="text-base font-black text-emerald-700">$34.99</span>
+                              </div>
+                              <p className="text-[9.5px] font-semibold text-stone-700 leading-relaxed mb-3">
+                                8"×8", 100lb semi-gloss, HD full-color rich print.
+                              </p>
+                            </div>
+                            <div className="space-y-1 pt-2 border-t border-stone-300/60 text-[8.5px] font-bold text-stone-500 uppercase tracking-wider">
+                              <p>• Vibrant Full Color</p>
+                              <p>• Archival Quality Paper</p>
+                            </div>
+                          </div>
+
+                          {/* Hardcover */}
+                          <div className="p-4 bg-[#f8f4ec] border-2 border-stone-300 hover:border-amber-600 rounded-2xl transition-all shadow-xs hover:shadow-md flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between items-start mb-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="p-1.5 rounded-lg bg-amber-100 text-amber-800 border border-amber-300">
+                                    <Zap size={13} />
+                                  </span>
+                                  <span className="text-[10px] font-black text-stone-900 uppercase tracking-wider">Hardcover</span>
+                                </div>
+                                <span className="text-base font-black text-amber-700">$49.99</span>
+                              </div>
+                              <p className="text-[9.5px] font-semibold text-stone-700 leading-relaxed mb-3">
+                                11"×8.5" / 8"×8", glossy or matte, pro library binding.
+                              </p>
+                            </div>
+                            <div className="space-y-1 pt-2 border-t border-stone-300/60 text-[8.5px] font-bold text-stone-500 uppercase tracking-wider">
+                              <p>• Casebound Hardcover</p>
+                              <p>• Long-Lasting Durability</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* SECTION 3: TITLES */}
+                      <div className="pt-6 border-t border-stone-300">
+                        <div className="mb-4 flex items-baseline justify-between">
+                          <div>
+                            <h3 className="text-sm sm:text-base font-black text-stone-900 uppercase tracking-[0.16em]">
+                              TITLES
+                            </h3>
+                            <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">
+                              Titles currently live in the system — Click to configure order
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-extrabold text-stone-800 bg-[#ebe3d5] px-2.5 py-1 rounded-full border border-stone-300">
+                            {filteredShopBooks.length} Available
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+                          {filteredShopBooks.map((book) => (
+                            <motion.div 
+                              key={book.id}
+                              whileHover={{ y: -4 }}
+                              onClick={() => {
+                                setSelectedBook(book);
+                                setOrderStep('form');
+                              }}
+                              className="group cursor-pointer bg-[#f8f4ec] rounded-2xl p-2.5 border border-stone-300 hover:border-amber-600 hover:shadow-lg transition-all"
+                            >
+                              <div className="relative aspect-[3/4] rounded-xl overflow-hidden mb-2.5 bg-stone-200 shadow-xs">
+                                <img 
+                                  src={book.thumbnail} 
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                  alt={book.title} 
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-stone-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                                  <span className="text-[9px] font-black text-white bg-amber-600 px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-sm">
+                                    Order Print
+                                  </span>
+                                </div>
+                              </div>
+                              <h4 className="text-[11px] font-extrabold text-stone-900 uppercase truncate mb-0.5" title={book.title}>
+                                {book.title}
+                              </h4>
+                              <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wide truncate">
+                                {book.author}
+                              </p>
+                            </motion.div>
+                          ))}
+                        </div>
                       </div>
                     </motion.div>
                   ) : (
@@ -1287,51 +1368,52 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       key="form"
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="max-w-2xl mx-auto"
+                      className="max-w-3xl mx-auto bg-[#f8f4ec] border border-stone-300 rounded-3xl p-6 sm:p-8 shadow-md"
                     >
                       <button 
                         onClick={() => setOrderStep('selection')}
-                        className="text-[9px] font-black text-[#00c2ff] uppercase tracking-widest mb-8 flex items-center gap-2 hover:translate-x-[-4px] transition-transform"
+                        className="text-[10px] font-extrabold text-amber-800 hover:text-amber-900 uppercase tracking-widest mb-6 flex items-center gap-2 hover:translate-x-[-3px] transition-transform"
                       >
-                        ← Back to Bookstore
+                        ← Back to Titles Selection
                       </button>
 
-                      <div className="grid md:grid-cols-2 gap-10">
+                      <div className="grid md:grid-cols-2 gap-8 items-start">
                         {/* Book Preview */}
-                        <div className="space-y-6">
-                          <div className="aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+                        <div className="space-y-4 bg-[#ebe3d5] p-4 rounded-2xl border border-stone-300">
+                          <div className="aspect-[3/4] rounded-xl overflow-hidden border border-stone-300 shadow-md">
                             <img src={selectedBook?.thumbnail} className="w-full h-full object-cover" alt="preview" />
                           </div>
                           <div>
-                            <h3 className="text-xl font-black text-white uppercase italic mb-2">{selectedBook?.title}</h3>
-                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">By {selectedBook?.author}</p>
+                            <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-800">Selected Title</span>
+                            <h3 className="text-lg font-black text-stone-900 uppercase tracking-tight mt-0.5">{selectedBook?.title}</h3>
+                            <p className="text-[10px] text-stone-600 font-bold uppercase tracking-wider">By {selectedBook?.author}</p>
                           </div>
                         </div>
 
                         {/* Order Form */}
-                        <form onSubmit={handleOrderSubmit} className="space-y-6">
+                        <form onSubmit={handleOrderSubmit} className="space-y-5">
                           <div className="space-y-4">
                             {/* Payment Method Selector */}
-                            <div className="p-1 bg-black/60 border border-white/10 rounded-2xl grid grid-cols-2 gap-1 mb-4">
+                            <div className="p-1 bg-[#ebe3d5] border border-stone-300 rounded-2xl grid grid-cols-2 gap-1">
                               <button
                                 type="button"
                                 onClick={() => setPaymentMethod('usd')}
-                                className={`py-2.5 px-3 rounded-xl font-black text-[9px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                                className={`py-2.5 px-3 rounded-xl font-extrabold text-[9px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
                                   paymentMethod === 'usd'
-                                    ? 'bg-white text-black shadow'
-                                    : 'text-slate-400 hover:text-white'
+                                    ? 'bg-[#f8f4ec] text-stone-900 shadow-xs border border-stone-300'
+                                    : 'text-stone-600 hover:text-stone-900'
                                 }`}
                               >
-                                <CreditCard size={13} />
+                                <CreditCard size={13} className="text-stone-800" />
                                 <span>Stripe Checkout</span>
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setPaymentMethod('marqs')}
-                                className={`py-2.5 px-3 rounded-xl font-black text-[9px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                                className={`py-2.5 px-3 rounded-xl font-extrabold text-[9px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
                                   paymentMethod === 'marqs'
-                                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.3)]'
-                                    : 'text-slate-400 hover:text-amber-400'
+                                    ? 'bg-amber-600 text-stone-50 shadow-xs'
+                                    : 'text-stone-600 hover:text-amber-800'
                                 }`}
                               >
                                 <MarqsLogo size={13} />
@@ -1340,139 +1422,109 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                             </div>
 
                             {paymentMethod === 'marqs' && (
-                              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 mb-2">
+                              <div className="p-3 bg-[#ebe3d5] border border-amber-600/40 rounded-2xl flex items-center justify-between gap-3">
                                 <div className="flex items-center gap-2.5">
-                                  <MarqsLogo size={18} glow />
+                                  <MarqsLogo size={18} />
                                   <div>
-                                    <p className="text-[9px] font-black text-amber-300 uppercase tracking-widest">
+                                    <p className="text-[9.5px] font-black text-amber-900 uppercase tracking-wider">
                                       Marq's Balance Payment
                                     </p>
-                                    <p className="text-[8px] text-slate-400 font-bold">
-                                      Book cost covered 100% by Marq's. Stripe processes shipping receipt only.
+                                    <p className="text-[8.5px] text-stone-600 font-medium">
+                                      Book cost covered 100% by Marq's. Stripe processes shipping only.
                                     </p>
                                   </div>
                                 </div>
                                 <div className="text-right shrink-0">
-                                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Wallet Balance</span>
-                                  <span className="text-[10px] font-mono font-black text-amber-300">{userMarqs.balance.toLocaleString()} MARQ'S</span>
+                                  <span className="text-[8px] font-bold text-stone-500 uppercase tracking-widest block">Wallet</span>
+                                  <span className="text-[10px] font-mono font-black text-amber-900">{userMarqs.balance.toLocaleString()} MARQS</span>
                                 </div>
                               </div>
                             )}
 
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-                              Choose your format and enter your shipping details below.
-                            </p>
-                            <div className="grid grid-cols-2 gap-3">
-                              <button 
-                                type="button"
-                                onClick={() => setOrderData({...orderData, format: 'coloring'})}
-                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'coloring' ? (paymentMethod === 'marqs' ? 'bg-amber-500 border-amber-500 text-black' : 'bg-[#00c2ff] border-[#00c2ff] text-black') : 'bg-black border-white/10 text-white hover:border-white/20'}`}
-                              >
-                                <span className="block text-[8px] font-black uppercase tracking-widest">Coloring Book style</span>
-                                <span className="block text-[11px] font-black mt-0.5">
-                                  {paymentMethod === 'marqs' ? '15,000 MARQS' : '$15.00'}
-                                </span>
-                              </button>
-                              <button 
-                                type="button"
-                                onClick={() => setOrderData({...orderData, format: 'board'})}
-                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'board' ? (paymentMethod === 'marqs' ? 'bg-amber-500 border-amber-500 text-black' : 'bg-[#00c2ff] border-[#00c2ff] text-black') : 'bg-black border-white/10 text-white hover:border-white/20'}`}
-                              >
-                                <span className="block text-[8px] font-black uppercase tracking-widest">Board Book style</span>
-                                <span className="block text-[11px] font-black mt-0.5">
-                                  {paymentMethod === 'marqs' ? '24,990 MARQS' : '$24.99'}
-                                </span>
-                              </button>
-                              <button 
-                                type="button"
-                                onClick={() => setOrderData({...orderData, format: 'soft_photo'})}
-                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'soft_photo' ? (paymentMethod === 'marqs' ? 'bg-amber-500 border-amber-500 text-black' : 'bg-[#00c2ff] border-[#00c2ff] text-black') : 'bg-black border-white/10 text-white hover:border-white/20'}`}
-                              >
-                                <span className="block text-[8px] font-black uppercase tracking-widest">Softcover Book style</span>
-                                <span className="block text-[11px] font-black mt-0.5">
-                                  {paymentMethod === 'marqs' ? '34,990 MARQS' : '$34.99'}
-                                </span>
-                              </button>
-                              <button 
-                                type="button"
-                                onClick={() => setOrderData({...orderData, format: 'hard_photo'})}
-                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'hard_photo' ? (paymentMethod === 'marqs' ? 'bg-amber-500 border-amber-500 text-black' : 'bg-[#00c2ff] border-[#00c2ff] text-black') : 'bg-black border-white/10 text-white hover:border-white/20'}`}
-                              >
-                                <span className="block text-[8px] font-black uppercase tracking-widest">Hardcover Book style</span>
-                                <span className="block text-[11px] font-black mt-0.5">
-                                  {paymentMethod === 'marqs' ? '49,990 MARQS' : '$49.99'}
-                                </span>
-                              </button>
-                            </div>
-
-                            {/* Format Specifications */}
-                            <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
-                              <h4 className="text-[9px] font-black text-[#00c2ff] uppercase tracking-widest mb-3 flex items-center gap-2">
-                                <Info size={12} />
-                                Product Specifications
-                              </h4>
-                              <div className="space-y-2">
-                                {orderData.format === 'coloring' && (
-                                  <>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Size: 8.5" x 11" (Standard Coloring Size)</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Pages: 26 Premium White Sheets</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Quality: Ideal for crayons, markers, watercolors</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Cover: Flexible Soft Cover</p>
-                                  </>
-                                )}
-                                {orderData.format === 'board' && (
-                                  <>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Material: 1/16” Thick White Chipboard</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Finish: Matte Lamination (Anti-Fingerprint)</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Safety: Rounded Corners Design</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Limit: Max 20 Pages</p>
-                                  </>
-                                )}
-                                {orderData.format === 'soft_photo' && (
-                                  <>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Size: 8'' x 8'' Square Format</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Binding: Sturdy Hardcover (Glossy or Matte)</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Paper: 100 lb Archival Semi-Gloss</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Print: Vibrant Full-Color High-Definition</p>
-                                  </>
-                                )}
-                                {orderData.format === 'hard_photo' && (
-                                  <>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Size: 11'' x 8.5'' or 8'' x 8''</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Finish: Premium Glossy or Matte Boards</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Binding: Professional Library-Grade Binding</p>
-                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">• Limit: Max 24 Pages</p>
-                                  </>
-                                )}
+                            <div>
+                              <label className="block text-[9.5px] font-extrabold text-stone-700 uppercase tracking-wider mb-2">
+                                Select Format
+                              </label>
+                              <div className="grid grid-cols-2 gap-2">
+                                {[
+                                  { id: 'coloring', name: 'Coloring Book', price: '$15.00', marqs: '15,000' },
+                                  { id: 'board', name: 'Board Book', price: '$24.99', marqs: '24,990' },
+                                  { id: 'soft_photo', name: 'Softcover', price: '$34.99', marqs: '34,990' },
+                                  { id: 'hard_photo', name: 'Hardcover', price: '$49.99', marqs: '49,990' },
+                                ].map((fmt) => (
+                                  <button 
+                                    key={fmt.id}
+                                    type="button"
+                                    onClick={() => setOrderData({...orderData, format: fmt.id as any})}
+                                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                                      orderData.format === fmt.id 
+                                        ? 'bg-amber-600 border-amber-700 text-stone-50 shadow-xs font-black' 
+                                        : 'bg-[#ebe3d5] border-stone-300 text-stone-700 hover:border-stone-400'
+                                    }`}
+                                  >
+                                    <span className="block text-[8.5px] uppercase tracking-wider">{fmt.name}</span>
+                                    <span className="block text-[10.5px] mt-0.5">
+                                      {paymentMethod === 'marqs' ? `${fmt.marqs} MARQS` : fmt.price}
+                                    </span>
+                                  </button>
+                                ))}
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4">
+                            {/* Format Specs Callout */}
+                            <div className="p-3 bg-[#ebe3d5] border border-stone-300 rounded-xl text-[9px] text-stone-700 space-y-1">
+                              {orderData.format === 'coloring' && (
+                                <>
+                                  <p className="font-bold text-amber-900">• Size: 8.5" × 11" Standard Coloring Size</p>
+                                  <p>• Pages: 26 Premium Sheets for crayons & markers</p>
+                                </>
+                              )}
+                              {orderData.format === 'board' && (
+                                <>
+                                  <p className="font-bold text-amber-900">• Material: 1/16” Chipboard with Matte Lam</p>
+                                  <p>• Features: Rounded child-safe corners, smudge-resistant</p>
+                                </>
+                              )}
+                              {orderData.format === 'soft_photo' && (
+                                <>
+                                  <p className="font-bold text-amber-900">• Size: 8'' × 8'' Square Format</p>
+                                  <p>• Paper: 100 lb Archival Semi-Gloss Full-Color</p>
+                                </>
+                              )}
+                              {orderData.format === 'hard_photo' && (
+                                <>
+                                  <p className="font-bold text-amber-900">• Size: 11'' × 8.5'' or 8'' × 8''</p>
+                                  <p>• Binding: Professional Library-Grade Casebound Hardcover</p>
+                                </>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
                               <div className="col-span-2 space-y-1">
-                                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Shipping Name</label>
+                                <label className="text-[9px] font-extrabold text-stone-700 uppercase tracking-wider">Shipping Name</label>
                                 <input 
                                   required
                                   value={orderData.name}
                                   onChange={e => setOrderData({...orderData, name: e.target.value})}
                                   placeholder="Full Name"
-                                  className="w-full bg-black border border-white/10 py-3 px-5 rounded-xl text-[10px] font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase"
+                                  className="w-full bg-[#ebe3d5] border border-stone-300 py-2.5 px-3.5 rounded-xl text-xs font-medium text-stone-800 focus:bg-[#fdfbf7] focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-600/10 transition-all"
                                 />
                               </div>
                               <div className="space-y-1">
-                                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Quantity</label>
-                                <div className="flex items-center bg-black border border-white/10 rounded-xl overflow-hidden">
+                                <label className="text-[9px] font-extrabold text-stone-700 uppercase tracking-wider">Qty</label>
+                                <div className="flex items-center bg-[#ebe3d5] border border-stone-300 rounded-xl overflow-hidden">
                                   <button 
                                     type="button"
                                     onClick={() => setOrderData({...orderData, quantity: Math.max(1, orderData.quantity - 1)})}
-                                    className="p-3 hover:bg-white/5 text-slate-400"
+                                    className="p-2.5 hover:bg-stone-300 text-stone-600 transition-colors"
                                   >
                                     <Minus size={12} />
                                   </button>
-                                  <span className="flex-1 text-center text-[10px] font-black text-white">{orderData.quantity}</span>
+                                  <span className="flex-1 text-center text-xs font-extrabold text-stone-800">{orderData.quantity}</span>
                                   <button 
                                     type="button"
                                     onClick={() => setOrderData({...orderData, quantity: orderData.quantity + 1})}
-                                    className="p-3 hover:bg-white/5 text-[#00c2ff]"
+                                    className="p-2.5 hover:bg-stone-300 text-amber-800 transition-colors"
                                   >
                                     <Plus size={12} />
                                   </button>
@@ -1481,36 +1533,36 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                             </div>
 
                             <div className="space-y-1">
-                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
+                              <label className="text-[9px] font-extrabold text-stone-700 uppercase tracking-wider">Email Address</label>
                               <input 
                                 required
                                 type="email"
                                 value={orderData.email}
                                 onChange={e => setOrderData({...orderData, email: e.target.value})}
                                 placeholder="your@email.com"
-                                className="w-full bg-black border border-white/10 py-4 px-6 rounded-2xl text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase"
+                                className="w-full bg-[#ebe3d5] border border-stone-300 py-2.5 px-3.5 rounded-xl text-xs font-medium text-stone-800 focus:bg-[#fdfbf7] focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-600/10 transition-all"
                               />
                             </div>
 
                             <div className="space-y-1">
-                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Shipping Address</label>
+                              <label className="text-[9px] font-extrabold text-stone-700 uppercase tracking-wider">Shipping Address</label>
                               <textarea 
                                 required
                                 value={orderData.address}
                                 onChange={e => setOrderData({...orderData, address: e.target.value})}
-                                placeholder="Street, City, Zip, Country"
-                                className="w-full bg-black border border-white/10 py-4 px-6 rounded-2xl text-xs font-bold text-white focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase min-h-[100px] resize-none"
+                                placeholder="Street, Apt, City, Zip, Country"
+                                className="w-full bg-[#ebe3d5] border border-stone-300 py-2.5 px-3.5 rounded-xl text-xs font-medium text-stone-800 focus:bg-[#fdfbf7] focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-600/10 transition-all min-h-[75px] resize-none"
                               />
                             </div>
 
-                            {/* Price Summary */}
-                            <div className="mt-6 p-6 bg-white/5 rounded-2xl border border-white/10 space-y-3">
-                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                                <span className="text-slate-500">Unit Price</span>
-                                <span className="text-white">
+                            {/* Summary Box */}
+                            <div className="p-4 bg-[#ebe3d5] rounded-2xl border border-stone-300 space-y-2">
+                              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                                <span className="text-stone-600">Unit Price</span>
+                                <span className="text-stone-900 font-extrabold">
                                   {paymentMethod === 'marqs' ? (
-                                    <span className="text-emerald-400 font-black">
-                                      0.00 USD <span className="text-[8px] text-amber-300">({(
+                                    <span className="text-emerald-800 font-black">
+                                      $0.00 USD <span className="text-[8.5px] text-amber-800">({(
                                         orderData.format === 'coloring' ? 15000 : 
                                         orderData.format === 'board' ? 24990 : 
                                         orderData.format === 'soft_photo' ? 34990 : 49990
@@ -1523,42 +1575,24 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                                   )}
                                 </span>
                               </div>
-                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                                <span className="text-slate-500">Quantity</span>
-                                <span className="text-white">x{orderData.quantity}</span>
+                              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                                <span className="text-stone-600">Quantity</span>
+                                <span className="text-stone-900 font-extrabold">x{orderData.quantity}</span>
                               </div>
 
-                              {paymentMethod === 'marqs' && (
-                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                                  <span className="text-slate-500">Marqs Subtotal</span>
-                                  <span className="text-amber-400 font-mono">
-                                    {(
-                                      (orderData.format === 'coloring' ? 15000 : 
-                                       orderData.format === 'board' ? 24990 : 
-                                       orderData.format === 'soft_photo' ? 34990 : 49990) * orderData.quantity
-                                    ).toLocaleString()} MARQS
-                                  </span>
-                                </div>
-                              )}
-
-                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                                <span className="text-slate-500">Shipping (Stripe Receipt)</span>
-                                <span className={shippingCost > 0 ? "text-[#00c2ff]" : "text-slate-600"}>
+                              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                                <span className="text-stone-600">Shipping (Stripe Receipt)</span>
+                                <span className={shippingCost > 0 ? "text-amber-800 font-extrabold" : "text-stone-500"}>
                                   {shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : 'Enter Address'}
                                 </span>
                               </div>
 
-                              <div className="h-px bg-white/10 my-2" />
+                              <div className="h-px bg-stone-300 my-1" />
                               <div className="flex justify-between items-center">
-                                <div className="space-y-1">
-                                  <span className="block text-[11px] font-black text-white uppercase tracking-widest">
-                                    {paymentMethod === 'marqs' ? 'Due Today (Shipping Only)' : 'Total Due'}
-                                  </span>
-                                  <span className="block text-[8px] text-emerald-400 font-black uppercase tracking-widest">
-                                    Est. Delivery: 1 Week Min. (+25 Marqs Reward)
-                                  </span>
-                                </div>
-                                <span className={`text-xl font-black ${paymentMethod === 'marqs' ? 'text-amber-300' : 'text-[#00c2ff]'}`}>
+                                <span className="text-[11px] font-black text-stone-900 uppercase tracking-wider">
+                                  {paymentMethod === 'marqs' ? 'Due Today (Shipping)' : 'Total Due'}
+                                </span>
+                                <span className="text-lg font-black text-amber-700">
                                   ${(
                                     paymentMethod === 'marqs' 
                                       ? shippingCost 
@@ -1573,28 +1607,18 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
 
                           <button 
                             type="submit" 
-                            className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center justify-center gap-3 ${
-                              paymentMethod === 'marqs'
-                                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-[0_0_30px_rgba(245,158,11,0.3)]'
-                                : 'bg-[#00c2ff] text-black shadow-[0_0_30px_rgba(0,194,255,0.2)]'
-                            }`}
+                            className="w-full py-4 rounded-2xl font-black uppercase tracking-wider bg-amber-600 hover:bg-amber-700 text-stone-50 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-xs"
                           >
-                            {paymentMethod === 'marqs' ? <Coins size={18} /> : <CreditCard size={18} />}
+                            {paymentMethod === 'marqs' ? <Coins size={16} /> : <CreditCard size={16} />}
                             {paymentMethod === 'marqs' 
-                              ? `Redeem Marqs & Pay Shipping ($${shippingCost.toFixed(2)})`
-                              : `Stripe Checkout ($${(
+                              ? `Redeem Marq's & Pay Shipping ($${shippingCost.toFixed(2)})`
+                              : `Proceed to Checkout ($${(
                                   ((orderData.format === 'coloring' ? 15.00 : 
                                     orderData.format === 'board' ? 24.99 : 
                                     orderData.format === 'soft_photo' ? 34.99 : 49.99) * orderData.quantity + shippingCost)
                                 ).toFixed(2)})`
                             }
                           </button>
-                          <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest text-center">
-                            {paymentMethod === 'marqs' 
-                              ? 'Your Marqs balance covers the book printing. You will only be billed the shipping receipt.'
-                              : 'Your order will be processed and shipped directly to you.'
-                            }
-                          </p>
                         </form>
                       </div>
                     </motion.div>
