@@ -146,16 +146,22 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       setIsMarqsModalOpen(true);
     };
 
+    const handleOpenShop = () => {
+      setIsShopOpen(true);
+    };
+
     window.addEventListener('zetsu-quota-updated', handleQuotaUpdate);
     window.addEventListener('zetsu-marqs-updated', handleMarqsUpdate);
     window.addEventListener('show-quota-modal', () => setIsQuotaPopoverOpen(true));
     window.addEventListener('open-marqs-modal', handleOpenMarqs);
+    window.addEventListener('open-shop-modal', handleOpenShop);
 
     return () => {
       window.removeEventListener('zetsu-quota-updated', handleQuotaUpdate);
       window.removeEventListener('zetsu-marqs-updated', handleMarqsUpdate);
       window.removeEventListener('show-quota-modal', () => setIsQuotaPopoverOpen(true));
       window.removeEventListener('open-marqs-modal', handleOpenMarqs);
+      window.removeEventListener('open-shop-modal', handleOpenShop);
     };
   }, []);
 
@@ -432,16 +438,16 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-2xl border-b border-white/5">
-        <div className="max-w-[1600px] mx-auto px-3 md:px-6">
-          <div className="flex justify-between items-center h-20 gap-2">
+        <div className="max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6">
+          <div className="flex justify-between items-center h-16 md:h-20 gap-1.5 sm:gap-3 md:gap-4">
             {/* Logo Section */}
             {!isMobileSearchOpen && (
-              <Link to="/" className="flex items-center gap-2 group shrink-0">
+              <Link to="/" className="flex items-center gap-1.5 md:gap-2 group shrink-0" id="nav-brand-logo">
                 <div className="flex flex-col">
-                  <span className="text-[13px] md:text-2xl font-black tracking-tight text-white leading-none uppercase">
-                    Zetsumetsu <span className="text-[#00c2ff] italic">EOe</span> <span className="hidden min-[480px]:inline">BOOKZ</span>
+                  <span className="text-[12px] sm:text-base md:text-2xl font-black tracking-tight text-white leading-none uppercase">
+                    Zetsumetsu <span className="text-[#00c2ff] italic">EOe</span> <span className="hidden lg:inline">BOOKZ</span>
                   </span>
-                  <span className="text-[6px] md:text-[9px] font-bold text-[#00c2ff] tracking-[0.4em] uppercase opacity-80 mt-1 flex items-center gap-1.5">
+                  <span className="text-[5.5px] sm:text-[7px] md:text-[9px] font-bold text-[#00c2ff] tracking-[0.25em] md:tracking-[0.4em] uppercase opacity-80 mt-0.5 flex items-center gap-1">
                     <span className="inline-block w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#00c2ff] animate-pulse" />
                     NEXUS
                   </span>
@@ -450,16 +456,16 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
             )}
             
             {/* Search Bar - Desktop & Mobile Toggle */}
-            <div className={`flex-1 max-w-[180px] lg:max-w-[240px] mx-4 md:mx-8 ${isMobileSearchOpen ? 'block' : 'hidden md:block'}`} id="nav-search-container">
+            <div className={`flex-1 max-w-[160px] lg:max-w-[240px] mx-2 md:mx-6 ${isMobileSearchOpen ? 'block' : 'hidden md:block'}`} id="nav-search-container">
               <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00c2ff] transition-colors" size={16} />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00c2ff] transition-colors" size={15} />
                 <input 
                   type="text" 
                   autoFocus={isMobileSearchOpen}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery?.(e.target.value)}
                   placeholder="SEARCH ARCHIVES..." 
-                  className="w-full bg-[#0a0a0a] border border-white/10 rounded-full py-2.5 md:py-3 pl-10 md:pl-12 pr-10 text-[10px] md:text-sm font-mono text-slate-300 focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase tracking-widest placeholder:text-slate-700 shadow-inner"
+                  className="w-full bg-[#0a0a0a] border border-white/10 rounded-full py-2 md:py-2.5 pl-9 md:pl-11 pr-9 text-[10px] md:text-xs font-mono text-slate-300 focus:outline-none focus:border-[#00c2ff]/50 transition-all uppercase tracking-wider placeholder:text-slate-700 shadow-inner"
                 />
                 <button 
                   onClick={() => {
@@ -470,7 +476,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       setSearchQuery?.("");
                     }
                   }} 
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
                 >
                   <X size={14} />
                 </button>
@@ -479,35 +485,35 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
 
             {/* Actions Section */}
             {!isMobileSearchOpen && (
-              <div className="flex items-center gap-2 md:gap-4">
+              <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
                 <button 
                   onClick={() => setIsMobileSearchOpen(true)}
-                  className="md:hidden p-2 text-slate-400 hover:text-[#00c2ff] transition-colors"
+                  className="md:hidden p-1.5 text-slate-400 hover:text-[#00c2ff] transition-colors rounded-full bg-white/5 border border-white/10 shrink-0"
                   title="Search Archives"
                 >
-                  <Search size={18} />
+                  <Search size={14} />
                 </button>
                 
                 {/* Live Upload Quota Badge & Dropdown */}
-                <div className="relative" ref={popoverRef}>
+                <div className="relative shrink-0" ref={popoverRef}>
                   {quota.isPremium ? (
                     <button 
                       onClick={() => setIsQuotaPopoverOpen(prev => !prev)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 md:py-2 bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 hover:from-amber-500/20 hover:to-indigo-500/20 border border-amber-400/30 rounded-full transition-all group shadow-[0_0_15px_rgba(251,191,36,0.15)]"
+                      className="flex items-center gap-1 px-2 sm:px-3 py-1.5 md:py-2 bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 hover:from-amber-500/20 hover:to-indigo-500/20 border border-amber-400/30 rounded-full transition-all group shadow-[0_0_15px_rgba(251,191,36,0.15)] shrink-0"
                       title={`Archival Status: Premium Tier (${quota.remainingUploads} of ${quota.maxUploads || 20} slots remaining)`}
                     >
-                      <Crown size={13} className="text-amber-400 fill-amber-400 shrink-0" />
-                      <span className="text-[9px] md:text-[10px] font-black text-amber-300 tracking-wider">
-                        {quota.remainingUploads}/{quota.maxUploads || 20} SLOTS
+                      <Crown size={11} className="text-amber-400 fill-amber-400 shrink-0" />
+                      <span className="text-[8px] sm:text-[9px] md:text-[10px] font-black text-amber-300 tracking-wider">
+                        {quota.remainingUploads}/{quota.maxUploads || 20}
                       </span>
-                      <span className="hidden xl:inline text-[8px] font-bold text-slate-400 uppercase tracking-widest pl-1 border-l border-white/10">
+                      <span className="hidden min-[480px]:inline text-[7px] md:text-[8px] font-bold text-slate-400 uppercase tracking-widest pl-0.5 border-l border-white/10">
                         PRO
                       </span>
                     </button>
                   ) : (
                     <button 
                       onClick={() => setIsQuotaPopoverOpen(prev => !prev)}
-                      className={`flex items-center gap-2 px-2.5 sm:px-3.5 py-1.5 md:py-2 rounded-full border transition-all ${
+                      className={`flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 md:px-3 py-1.5 md:py-2 rounded-full border transition-all shrink-0 ${
                         quota.remainingUploads === 0
                           ? 'bg-red-950/40 border-red-500/40 text-red-300 hover:bg-red-900/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
                           : quota.remainingUploads === 1
@@ -517,11 +523,11 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       title={`Upload Allowance: ${quota.remainingUploads} of ${quota.maxFreeUploads} slots remaining`}
                     >
                       {/* Segmented Slot Indicators */}
-                      <div className="flex items-center gap-1">
+                      <div className="hidden min-[440px]:flex items-center gap-0.5 sm:gap-1">
                         {[0, 1, 2, 3, 4].map(idx => (
                           <div 
                             key={idx}
-                            className={`w-1.5 h-1.5 rounded-full transition-all ${
+                            className={`w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full transition-all ${
                               idx < quota.uploadCount 
                                 ? quota.remainingUploads === 0 ? 'bg-red-500' : 'bg-[#00c2ff] shadow-[0_0_6px_#00c2ff]' 
                                 : 'bg-white/10 border border-white/20'
@@ -530,17 +536,17 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         ))}
                       </div>
 
-                      <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-black tracking-wider">
+                      <div className="flex items-center gap-0.5 text-[8px] sm:text-[9px] md:text-[10px] font-mono font-black tracking-wider">
                         <span className={quota.remainingUploads === 0 ? 'text-red-400' : quota.remainingUploads === 1 ? 'text-amber-400' : 'text-[#00c2ff]'}>
                           {quota.remainingUploads}/{quota.maxFreeUploads}
                         </span>
-                        <span className="hidden sm:inline uppercase text-slate-400 text-[8px] font-bold tracking-widest">
+                        <span className="hidden sm:inline uppercase text-slate-400 text-[7px] md:text-[8px] font-bold tracking-widest">
                           {quota.remainingUploads === 1 ? 'SLOT' : 'SLOTS'}
                         </span>
                       </div>
 
                       {quota.remainingUploads === 0 && (
-                        <span className="hidden sm:inline bg-red-500 text-black text-[7px] font-black uppercase px-1.5 py-0.5 rounded tracking-widest ml-0.5">
+                        <span className="hidden sm:inline bg-red-500 text-black text-[6.5px] font-black uppercase px-1 py-0.5 rounded tracking-widest ml-0.5">
                           MAX
                         </span>
                       )}
@@ -550,189 +556,220 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                   {/* Interactive Quota Breakdown Popover */}
                   <AnimatePresence>
                     {isQuotaPopoverOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-[#0c0c0e] border border-white/15 rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_30px_rgba(0,194,255,0.1)] z-50 backdrop-blur-xl"
-                      >
-                        <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                          <div className="flex items-center gap-2">
-                            <HardDrive size={14} className="text-[#00c2ff]" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white">Archival Storage</span>
-                          </div>
-                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
-                            quota.isPremium ? 'bg-amber-400/10 text-amber-300 border border-amber-400/20' : 'bg-white/5 text-slate-400 border border-white/10'
-                          }`}>
-                            {quota.isPremium ? '👑 PREMIUM (20 SLOTS)' : 'FREE TIER (5 SLOTS)'}
-                          </span>
-                        </div>
+                      <>
+                        {/* Mobile Backdrop Overlay */}
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={() => setIsQuotaPopoverOpen(false)}
+                          className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[100] sm:hidden"
+                        />
 
-                        <div className="py-3.5 space-y-3">
-                          {quota.isPremium ? (
-                            <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/10 to-purple-500/10 border border-amber-500/20 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Crown size={14} className="text-amber-400 fill-amber-400" />
-                                  <span className="text-[11px] font-black uppercase tracking-wide text-white">Premium Tier Active</span>
-                                </div>
-                                <span className="text-[10px] font-mono font-bold text-amber-300">
-                                  {quota.uploadCount}/{quota.maxUploads || 20} USED
-                                </span>
-                              </div>
-                              <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                                <div 
-                                  className="h-full bg-gradient-to-r from-amber-400 to-purple-500 rounded-full transition-all"
-                                  style={{ width: `${Math.min(100, (quota.uploadCount / (quota.maxUploads || 20)) * 100)}%` }}
-                                />
-                              </div>
-                              <p className="text-[9px] text-slate-300 font-medium leading-relaxed">
-                                {quota.remainingUploads} of {quota.maxUploads || 20} book archival slots remaining with permanent hosting.
-                              </p>
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          transition={{ duration: 0.18 }}
+                          className="fixed left-3 right-3 top-20 z-[105] sm:z-50 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-84 max-w-[390px] sm:max-w-none mx-auto bg-[#0c0c10] border border-white/20 rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_35px_rgba(0,194,255,0.2)] backdrop-blur-2xl max-h-[85vh] overflow-y-auto"
+                        >
+                          <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                            <div className="flex items-center gap-2">
+                              <HardDrive size={14} className="text-[#00c2ff]" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-white">Archival Storage</span>
                             </div>
-                          ) : (
-                            <>
-                              {/* Slot Meter Bar */}
-                              <div className="space-y-1.5">
-                                <div className="flex justify-between items-center text-[9px] font-mono font-bold uppercase">
-                                  <span className="text-slate-400">Slots Used</span>
-                                  <span className="text-white">{quota.uploadCount} of {quota.maxFreeUploads} Books</span>
-                                </div>
-                                
-                                {/* Visual 5-block row */}
-                                <div className="grid grid-cols-5 gap-1.5 py-1">
-                                  {[0, 1, 2, 3, 4].map(idx => {
-                                    const isUsed = idx < quota.uploadCount;
-                                    return (
-                                      <div 
-                                        key={idx}
-                                        className={`h-7 rounded-lg border flex flex-col items-center justify-center transition-all ${
-                                          isUsed 
-                                            ? 'bg-[#00c2ff]/15 border-[#00c2ff]/50 text-[#00c2ff]' 
-                                            : 'bg-white/5 border-dashed border-white/15 text-slate-600'
-                                        }`}
-                                      >
-                                        <span className="text-[8px] font-mono font-black">{idx + 1}</span>
-                                        <span className="text-[6px] uppercase font-bold tracking-tighter">
-                                          {isUsed ? 'USED' : 'FREE'}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              <div className={`p-2.5 rounded-xl border text-[9px] leading-relaxed font-bold ${
-                                quota.remainingUploads === 0
-                                  ? 'bg-red-500/10 border-red-500/30 text-red-200'
-                                  : quota.remainingUploads === 1
-                                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-                                  : 'bg-[#00c2ff]/10 border-[#00c2ff]/20 text-slate-300'
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                                quota.isPremium ? 'bg-amber-400/10 text-amber-300 border border-amber-400/20' : 'bg-white/5 text-slate-400 border border-white/10'
                               }`}>
-                                {quota.remainingUploads === 0 ? (
-                                  <p className="flex items-center gap-1.5">
-                                    <AlertTriangle size={14} className="text-red-400 shrink-0" />
-                                    <span>All 5 free slots filled. Upgrade to publish up to 20 books.</span>
-                                  </p>
-                                ) : quota.remainingUploads === 1 ? (
-                                  <p className="flex items-center gap-1.5">
-                                    <AlertTriangle size={14} className="text-amber-400 shrink-0" />
-                                    <span>1 upload slot remaining on your free tier.</span>
-                                  </p>
-                                ) : (
-                                  <p className="flex items-center gap-1.5">
-                                    <CheckCircle2 size={14} className="text-[#00c2ff] shrink-0" />
-                                    <span>You have {quota.remainingUploads} free uploads left.</span>
-                                  </p>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
+                                {quota.isPremium ? '👑 PREMIUM (20 SLOTS)' : 'FREE TIER (5 SLOTS)'}
+                              </span>
+                              <button
+                                onClick={() => setIsQuotaPopoverOpen(false)}
+                                className="p-1 hover:bg-white/10 text-slate-400 hover:text-white rounded-full transition-colors sm:hidden"
+                                aria-label="Close popover"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </div>
 
-                        <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
-                          {!quota.isPremium && (
+                          <div className="py-3.5 space-y-3">
+                            {quota.isPremium ? (
+                              <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/10 to-purple-500/10 border border-amber-500/20 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Crown size={14} className="text-amber-400 fill-amber-400" />
+                                    <span className="text-[11px] font-black uppercase tracking-wide text-white">Premium Tier Active</span>
+                                  </div>
+                                  <span className="text-[10px] font-mono font-bold text-amber-300">
+                                    {quota.uploadCount}/{quota.maxUploads || 20} USED
+                                  </span>
+                                </div>
+                                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-amber-400 to-purple-500 rounded-full transition-all"
+                                    style={{ width: `${Math.min(100, (quota.uploadCount / (quota.maxUploads || 20)) * 100)}%` }}
+                                  />
+                                </div>
+                                <p className="text-[9px] text-slate-300 font-medium leading-relaxed">
+                                  {quota.remainingUploads} of {quota.maxUploads || 20} book archival slots remaining with permanent hosting.
+                                </p>
+                              </div>
+                            ) : (
+                              <>
+                                {/* Slot Meter Bar */}
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between items-center text-[9px] font-mono font-bold uppercase">
+                                    <span className="text-slate-400">Slots Used</span>
+                                    <span className="text-white">{quota.uploadCount} of {quota.maxFreeUploads} Books</span>
+                                  </div>
+                                  
+                                  {/* Visual 5-block row */}
+                                  <div className="grid grid-cols-5 gap-1.5 py-1">
+                                    {[0, 1, 2, 3, 4].map(idx => {
+                                      const isUsed = idx < quota.uploadCount;
+                                      return (
+                                        <div 
+                                          key={idx}
+                                          className={`h-7 rounded-lg border flex flex-col items-center justify-center transition-all ${
+                                            isUsed 
+                                              ? 'bg-[#00c2ff]/15 border-[#00c2ff]/50 text-[#00c2ff]' 
+                                              : 'bg-white/5 border-dashed border-white/15 text-slate-600'
+                                          }`}
+                                        >
+                                          <span className="text-[8px] font-mono font-black">{idx + 1}</span>
+                                          <span className="text-[6px] uppercase font-bold tracking-tighter">
+                                            {isUsed ? 'USED' : 'FREE'}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                <div className={`p-2.5 rounded-xl border text-[9px] leading-relaxed font-bold ${
+                                  quota.remainingUploads === 0
+                                    ? 'bg-red-500/10 border-red-500/30 text-red-200'
+                                    : quota.remainingUploads === 1
+                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                                    : 'bg-[#00c2ff]/10 border-[#00c2ff]/20 text-slate-300'
+                                }`}>
+                                  {quota.remainingUploads === 0 ? (
+                                    <p className="flex items-center gap-1.5">
+                                      <AlertTriangle size={14} className="text-red-400 shrink-0" />
+                                      <span>All 5 free slots filled. Upgrade to publish up to 20 books.</span>
+                                    </p>
+                                  ) : quota.remainingUploads === 1 ? (
+                                    <p className="flex items-center gap-1.5">
+                                      <AlertTriangle size={14} className="text-amber-400 shrink-0" />
+                                      <span>1 upload slot remaining on your free tier.</span>
+                                    </p>
+                                  ) : (
+                                    <p className="flex items-center gap-1.5">
+                                      <CheckCircle2 size={14} className="text-[#00c2ff] shrink-0" />
+                                      <span>You have {quota.remainingUploads} free uploads left.</span>
+                                    </p>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
+                            {!quota.isPremium && (
+                              <button
+                                onClick={() => {
+                                  setIsQuotaPopoverOpen(false);
+                                  setIsPricingOpen(true);
+                                }}
+                                className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] active:scale-95"
+                              >
+                                <Crown size={12} className="fill-white" />
+                                Upgrade to 20 Books ($19.99)
+                              </button>
+                            )}
+                            
                             <button
                               onClick={() => {
                                 setIsQuotaPopoverOpen(false);
-                                setIsPricingOpen(true);
+                                setIsRequestOpen(true);
                               }}
-                              className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+                              className="w-full py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 border border-white/10 transition-all active:scale-95"
                             >
-                              <Crown size={12} className="fill-white" />
-                              Upgrade to 20 Books ($19.99)
+                              <Send size={11} />
+                              Open Upload Terminal
                             </button>
-                          )}
-                          
-                          <button
-                            onClick={() => {
-                              setIsQuotaPopoverOpen(false);
-                              setIsRequestOpen(true);
-                            }}
-                            className="w-full py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 border border-white/10 transition-all"
-                          >
-                            <Send size={11} />
-                            Open Upload Terminal
-                          </button>
-                        </div>
-                      </motion.div>
+                          </div>
+                        </motion.div>
+                      </>
                     )}
                   </AnimatePresence>
                 </div>
 
-                <div className="flex items-center gap-2 md:gap-4">
-                  {/* Marq's Native Economy Button */}
-                  <button 
-                    onClick={() => {
-                      setMarqsModalTab('wallet');
-                      setIsMarqsModalOpen(true);
-                    }}
-                    className="flex items-center gap-2 px-2.5 sm:px-3.5 py-1.5 md:py-2 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/50 rounded-full transition-all group shadow-[0_0_18px_rgba(255,230,0,0.25)] active:scale-95"
-                    title="Zetsu EOE Bookz Marq's: Click to open wallet, boost your book rankings, or check earning rates"
-                  >
-                    <MarqsLogo size={13} glow />
-                    <span className="text-[9px] md:text-[10px] font-mono font-black text-amber-300 tracking-wider">
-                      {userMarqs.balance.toLocaleString(undefined, { maximumFractionDigits: 1 })}
-                    </span>
-                    <span className="hidden min-[480px]:inline text-[8px] font-black text-amber-400 uppercase tracking-widest pl-0.5">
-                      MARQ'S
-                    </span>
-                  </button>
+                {/* Marq's Native Economy Button */}
+                <button 
+                  onClick={() => {
+                    setMarqsModalTab('wallet');
+                    setIsMarqsModalOpen(true);
+                  }}
+                  className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 md:px-3 py-1.5 md:py-2 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/50 rounded-full transition-all group shadow-[0_0_18px_rgba(255,230,0,0.25)] active:scale-95 shrink-0"
+                  title="Zetsu EOE Bookz Marq's: Click to open wallet"
+                >
+                  <MarqsLogo size={11} glow />
+                  <span className="text-[8px] sm:text-[9px] md:text-[10px] font-mono font-black text-amber-300 tracking-wider">
+                    {userMarqs.balance.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                  </span>
+                  <span className="hidden min-[540px]:inline text-[7px] md:text-[8px] font-black text-amber-400 uppercase tracking-widest pl-0.5">
+                    MARQ'S
+                  </span>
+                </button>
 
-                  {!isPremium && (
-                    <button 
-                      onClick={() => setIsPricingOpen(true)}
-                      className="hidden sm:flex px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_35px_rgba(168,85,247,0.6)] transition-all items-center gap-2 border border-white/10"
-                    >
-                      <Crown size={12} className="fill-white" />
-                      GO PREMIUM
-                    </button>
-                  )}
+                {/* Premium Upgrade Button - Visible & Compact on Mobile */}
+                {!isPremium && (
                   <button 
-                    onClick={() => setIsRequestOpen(true)}
-                    className="px-4 md:px-8 py-2.5 md:py-3 bg-[#00c2ff] text-black hover:bg-white text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center gap-2 rounded-full shadow-[0_0_25px_rgba(0,194,255,0.3)] hover:shadow-[0_0_45px_rgba(0,194,255,0.6)] active:scale-95 group"
+                    id="nav-premium-btn"
+                    onClick={() => setIsPricingOpen(true)}
+                    className="flex px-2 sm:px-3 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider rounded-full shadow-[0_0_18px_rgba(168,85,247,0.4)] hover:shadow-[0_0_35px_rgba(168,85,247,0.6)] transition-all items-center gap-1 sm:gap-1.5 border border-white/20 shrink-0 active:scale-95"
+                    title="Upgrade to Premium 20-Book Archival Tier"
                   >
-                    <Send size={14} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                    <span className="hidden min-[540px]:inline">SUBMIT DATA</span>
+                    <Crown size={11} className="fill-white shrink-0" />
+                    <span className="hidden min-[430px]:inline">PREMIUM</span>
+                    <span className="min-[430px]:hidden">PRO</span>
                   </button>
+                )}
 
-                  <button 
-                    onClick={() => setIsShopOpen(true)}
-                    className="px-4 md:px-6 py-2.5 md:py-3 bg-[#00f2c3] text-black hover:bg-white text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center gap-2 rounded-full shadow-[0_0_25px_rgba(0,242,195,0.3)] hover:shadow-[0_0_45px_rgba(0,242,195,0.6)] active:scale-95 group"
-                  >
-                    <ShoppingBag size={14} className="group-hover:scale-110 transition-transform" />
-                    <span className="hidden md:inline">Shop</span>
-                  </button>
+                {/* Submit Data Button - Always visible with icon and text */}
+                <button 
+                  id="nav-submit-btn"
+                  onClick={() => setIsRequestOpen(true)}
+                  className="px-2.5 sm:px-4 md:px-6 py-1.5 md:py-2.5 bg-[#00c2ff] text-black hover:bg-white text-[8px] sm:text-[9px] md:text-[11px] font-black uppercase tracking-wider md:tracking-[0.15em] transition-all duration-300 flex items-center gap-1 sm:gap-1.5 rounded-full shadow-[0_0_20px_rgba(0,194,255,0.35)] hover:shadow-[0_0_40px_rgba(0,194,255,0.6)] active:scale-95 group shrink-0"
+                  title="Submit Book or Document to Zetsu Archive"
+                >
+                  <Send size={11} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform shrink-0" />
+                  <span className="hidden min-[480px]:inline">SUBMIT DATA</span>
+                  <span className="min-[480px]:hidden">SUBMIT</span>
+                </button>
 
-                  <button 
-                    onClick={() => setIsAboutOpen(true)}
-                    className="flex items-center gap-2 p-2 md:px-4 md:py-2 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all"
-                  >
-                    <Info size={14} />
-                    <span className="hidden md:inline">About</span>
-                  </button>
-                </div>
+                {/* Desktop Print Shop Button */}
+                <button 
+                  onClick={() => setIsShopOpen(true)}
+                  className="hidden md:flex px-4 md:px-6 py-2 md:py-2.5 bg-[#00f2c3] text-black hover:bg-white text-[10px] md:text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300 items-center gap-1.5 rounded-full shadow-[0_0_20px_rgba(0,242,195,0.3)] hover:shadow-[0_0_35px_rgba(0,242,195,0.6)] active:scale-95 group shrink-0"
+                  title="Open Zetsu Print Shop"
+                >
+                  <ShoppingBag size={13} className="group-hover:scale-110 transition-transform shrink-0" />
+                  <span>Shop</span>
+                </button>
+
+                {/* About Button */}
+                <button 
+                  onClick={() => setIsAboutOpen(true)}
+                  className="flex items-center gap-1 p-1.5 sm:p-2 text-slate-400 hover:text-white text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-all shrink-0"
+                  title="About Zetsu EOE Bookz"
+                >
+                  <Info size={13} className="shrink-0" />
+                  <span className="hidden xl:inline">About</span>
+                </button>
               </div>
             )}
           </div>
@@ -1731,6 +1768,33 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       />
 
       <MarqsToast />
+
+      {/* Mobile Floating Shop Quick Action Button (Option 1 - Mobile Only) */}
+      <motion.button
+        id="mobile-floating-shop-btn"
+        initial={{ scale: 0.85, opacity: 0, y: 15 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.92 }}
+        onClick={() => setIsShopOpen(true)}
+        className="md:hidden fixed bottom-5 right-4 z-[90] flex items-center gap-2.5 pl-2.5 pr-4 py-2.5 bg-[#080d12]/95 hover:bg-black text-[#00f2c3] border-2 border-[#00f2c3] rounded-full shadow-[0_0_30px_rgba(0,242,195,0.45),0_10px_25px_rgba(0,0,0,0.85)] backdrop-blur-xl transition-all group active:shadow-[0_0_40px_rgba(0,242,195,0.8)]"
+        aria-label="Open Zetsu Bookstore Print Shop"
+      >
+        <div className="relative flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-[#00f2c3] text-black flex items-center justify-center shadow-[0_0_12px_rgba(0,242,195,0.7)] group-hover:scale-105 transition-transform">
+            <ShoppingBag size={15} className="stroke-[2.5]" />
+          </div>
+          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#00c2ff] border-2 border-black animate-pulse" />
+        </div>
+        <div className="flex flex-col text-left">
+          <span className="text-[11px] font-black uppercase tracking-wider text-white group-hover:text-[#00f2c3] transition-colors leading-tight">
+            SHOP
+          </span>
+          <span className="text-[7.5px] font-mono font-bold text-[#00f2c3] tracking-widest leading-none">
+            PRINTS
+          </span>
+        </div>
+      </motion.button>
     </>
   );
 };
