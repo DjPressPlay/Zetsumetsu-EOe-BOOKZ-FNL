@@ -28,7 +28,10 @@ import {
   Flame,
   ShieldAlert,
   ArrowRight,
-  Coins
+  Coins,
+  KeyRound,
+  BookOpen,
+  Users
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1632,103 +1635,186 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
 
       <AnimatePresence>
         {isAboutOpen && (
-          <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-[100] flex items-start justify-center p-3 sm:p-4 overflow-y-auto">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/90 backdrop-blur-xl" 
+              className="fixed inset-0 bg-black/85 backdrop-blur-xl" 
               onClick={() => setIsAboutOpen(false)} 
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative bg-[#0a0a0a] w-full max-w-2xl rounded-[2rem] md:rounded-[2.5rem] shadow-2xl border border-white/10 my-auto overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="relative bg-[#0c0f14] w-full max-w-3xl rounded-[2rem] shadow-[0_25px_70px_rgba(0,0,0,0.85),0_0_50px_rgba(0,194,255,0.15)] border border-white/15 my-auto overflow-hidden text-white"
             >
-              <div className="p-8 md:p-12 text-white max-h-[90vh] overflow-y-auto">
-                <h2 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase mb-4 md:mb-6">System_Manifesto</h2>
-                <div className="h-1 w-20 md:w-24 bg-[#00c2ff] mt-2 md:mt-4 mb-6 md:mb-8 shadow-[0_0_15px_rgba(0,194,255,0.5)]" />
-                <div className="space-y-8 text-slate-400 text-xs md:text-sm leading-relaxed mb-8 md:mb-12">
-                  <p className="text-white font-bold uppercase tracking-tight">
-                    Zetsumetsu EOe BOOKZ is a high-fidelity neural archive designed to transform static PDF documentation into immersive digital experiences. It functions as a decentralized storage nexus where creative intelligence is preserved.
-                  </p>
-                  
-                  <div className="space-y-6">
-                    <p className="text-[#00c2ff] font-black uppercase tracking-widest text-[9px] md:text-[10px]">Integrated_Features:</p>
-                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 list-none">
-                      <li className="flex gap-3">
-                        <span className="text-[#00c2ff] font-black mt-1">●</span>
-                        <span><strong className="text-white">NEURAL ARCHIVE:</strong> Instant PDF-to-Digital transformation with automated thumbnails and interactive reading.</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-[#00c2ff] font-black mt-1">●</span>
-                        <span><strong className="text-white">ZETSU BOOKSTORE:</strong> Physical Print-on-Demand in Coloring, Board, Softcover, and Hardcover styles.</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-[#00c2ff] font-black mt-1">●</span>
-                        <span><strong className="text-white">PROMO PROTOCOL:</strong> Gamified badge collection for free 2-day global broadcast runs across 6 platforms.</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-[#00c2ff] font-black mt-1">●</span>
-                        <span><strong className="text-white">ZETSU EDU:</strong> Educational nexus for creators to master archival arts and scale their reach.</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-[#00c2ff] font-black mt-1">●</span>
-                        <span><strong className="text-white">COMMUNITY RESPONSE:</strong> Trending feed, open discourse via comments, and author profile preservation.</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-[#00c2ff] font-black mt-1">●</span>
-                        <span><strong className="text-white">ADVANCED SEARCH:</strong> Multi-term intersection logic for deep discovery across titles, authors, and genre sectors.</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-[#00c2ff] font-black mt-1">●</span>
-                        <span><strong className="text-white">PREMIUM TIER:</strong> Unlimited archival storage and priority broadcast slots for verified creators.</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="text-[#00c2ff] font-black mt-1">●</span>
-                        <span><strong className="text-white">GLOBAL LOGISTICS:</strong> Secure Stripe checkout with worldwide shipping directly from our printing facilities.</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="space-y-4 pt-6 border-t border-white/5">
-                    <p className="text-[#00c2ff] font-black uppercase tracking-widest text-[9px] md:text-[10px]">Tech_Stack:</p>
-                    <div className="flex flex-wrap gap-x-6 gap-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="w-1 h-1 bg-white/20 rounded-full" />
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">React 19 / Vite</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-1 h-1 bg-white/20 rounded-full" />
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Supabase DB</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-1 h-1 bg-white/20 rounded-full" />
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tailwind CSS</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-1 h-1 bg-white/20 rounded-full" />
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Motion / Lucide</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-1 h-1 bg-white/20 rounded-full" />
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Stripe Nexus</span>
-                      </div>
+              <div className="p-6 sm:p-8 md:p-10 max-h-[90vh] overflow-y-auto space-y-6 sm:space-y-8">
+                
+                {/* Header */}
+                <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#00c2ff]/15 text-[#00c2ff] border border-[#00c2ff]/30">
+                        Platform Overview
+                      </span>
+                      <span className="text-[11px] font-mono text-slate-400">v2.9 Stable</span>
                     </div>
-                  </div>
-
-                  <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[8px] font-black text-slate-700 uppercase tracking-[0.3em]">Build_Version: 2.8.5-STABLE</span>
-                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-[0.3em]">Status: All Systems Nominal</span>
-                    </div>
-                    <p className="text-[10px] font-black text-white italic uppercase tracking-widest">
-                      Digital Archiving, The Zetsu Way.
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-white uppercase">
+                      About Zetsumetsu <span className="text-[#00c2ff]">EOe</span> BOOKZ
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-300 font-medium mt-1">
+                      An open digital library, creator community, and physical book publishing platform.
                     </p>
                   </div>
+                  <button 
+                    onClick={() => setIsAboutOpen(false)}
+                    className="p-2 rounded-full bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition-colors shrink-0"
+                    aria-label="Close About Dialog"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
-                <button onClick={() => setIsAboutOpen(false)} className="w-full bg-white text-black py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-xs md:text-base hover:bg-[#00c2ff] transition-colors">Close_Link</button>
+
+                {/* Plain-English Mission */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5">
+                  <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+                    <strong className="text-white font-bold">Zetsumetsu EOe BOOKZ</strong> makes reading, publishing, and archiving simple for everyone. Upload any PDF document to create an interactive digital book with cover previews, read titles instantly in your browser, earn community rewards, and even order real printed copies delivered straight to your door.
+                  </p>
+                </div>
+
+                {/* "Why No Log-In?" Highlight Card */}
+                <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-cyan-950/20 to-black border border-emerald-500/30 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shrink-0">
+                      <KeyRound size={15} />
+                    </div>
+                    <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-emerald-300">
+                      Why Is There No Login or Password?
+                    </h3>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
+                    We believe in <strong className="text-white">frictionless, privacy-first access</strong>. You don’t need to remember passwords, verify emails, or fill out sign-up forms:
+                  </p>
+                  <ul className="grid sm:grid-cols-2 gap-2.5 pt-1 text-xs text-slate-300">
+                    <li className="flex items-start gap-2 bg-black/40 p-2.5 rounded-xl border border-white/5">
+                      <span className="text-emerald-400 font-bold">✓</span>
+                      <span><strong className="text-white">Linked to Your Device:</strong> Your free 5-book archival quota, uploaded titles, and preferences are automatically connected to your device ID.</span>
+                    </li>
+                    <li className="flex items-start gap-2 bg-black/40 p-2.5 rounded-xl border border-white/5">
+                      <span className="text-emerald-400 font-bold">✓</span>
+                      <span><strong className="text-white">Instant Marq’s Rewards:</strong> Tokens you earn from reading and engaging are saved immediately to your local device wallet.</span>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Key Features Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[#00c2ff]">
+                      What You Can Do On BOOKZ
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {/* Feature 1 */}
+                    <div className="p-4 rounded-2xl bg-[#11161d] border border-white/10 hover:border-[#00c2ff]/30 transition-all space-y-1.5">
+                      <div className="flex items-center gap-2 text-[#00c2ff]">
+                        <BookOpen size={16} />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white">Interactive Digital Reader</h4>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">
+                        Upload any PDF to instantly generate clean page-turn viewing, automatic cover art, page count stats, and fullscreen reading mode.
+                      </p>
+                    </div>
+
+                    {/* Feature 2 */}
+                    <div className="p-4 rounded-2xl bg-[#11161d] border border-white/10 hover:border-amber-400/30 transition-all space-y-1.5">
+                      <div className="flex items-center gap-2 text-amber-400">
+                        <Coins size={16} />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white">Marq’s Reward Tokens</h4>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">
+                        Earn reward tokens simply by reading books, uploading content, upvoting, and commenting. Redeem them for book promotions or discounts on physical prints.
+                      </p>
+                    </div>
+
+                    {/* Feature 3 */}
+                    <div className="p-4 rounded-2xl bg-[#11161d] border border-white/10 hover:border-[#00f2c3]/30 transition-all space-y-1.5">
+                      <div className="flex items-center gap-2 text-[#00f2c3]">
+                        <ShoppingBag size={16} />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white">Physical Print-on-Demand</h4>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">
+                        Turn digital books into real physical copies in 4 formats: Coloring Books, Board Books, Softcovers, and Hardcovers with secure Stripe checkout.
+                      </p>
+                    </div>
+
+                    {/* Feature 4 */}
+                    <div className="p-4 rounded-2xl bg-[#11161d] border border-white/10 hover:border-purple-400/30 transition-all space-y-1.5">
+                      <div className="flex items-center gap-2 text-purple-400">
+                        <Users size={16} />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white">Community & Creator Hub</h4>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">
+                        Discover trending titles, join discussions in public comment sections, follow author profiles, and explore curated genres.
+                      </p>
+                    </div>
+
+                    {/* Feature 5 */}
+                    <div className="p-4 rounded-2xl bg-[#11161d] border border-white/10 hover:border-blue-400/30 transition-all space-y-1.5">
+                      <div className="flex items-center gap-2 text-blue-400">
+                        <HardDrive size={16} />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white">Free Archival Storage</h4>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">
+                        Every visitor gets 5 free book storage slots with permanent cloud hosting. High-volume creators can upgrade to 20 slots anytime.
+                      </p>
+                    </div>
+
+                    {/* Feature 6 */}
+                    <div className="p-4 rounded-2xl bg-[#11161d] border border-white/10 hover:border-indigo-400/30 transition-all space-y-1.5">
+                      <div className="flex items-center gap-2 text-indigo-400">
+                        <Search size={16} />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white">Curated Sectors & Search</h4>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">
+                        Organized across 6 distinct sectors: Guides & How-Tos, Fiction, Research & Papers, Nonfiction, Art & Illustration, and Other Documents.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Attribution & Footer Info */}
+                <div className="pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-[10px] text-slate-400">
+                  <div>
+                    <p className="font-bold text-white uppercase tracking-wider">
+                      Created by Kevin Suber (Artworqq)
+                    </p>
+                    <p className="text-slate-400">
+                      © 2024–2026 Zetsumetsu Corporation™ · Zetsu EDU™
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => {
+                        setIsAboutOpen(false);
+                        setIsRequestOpen(true);
+                      }}
+                      className="px-4 py-2 bg-[#00c2ff] text-black font-black uppercase tracking-wider rounded-xl hover:bg-white transition-colors text-[10px]"
+                    >
+                      Upload a Book
+                    </button>
+                    <button 
+                      onClick={() => setIsAboutOpen(false)}
+                      className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-wider rounded-xl transition-colors text-[10px]"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+
               </div>
             </motion.div>
           </div>
