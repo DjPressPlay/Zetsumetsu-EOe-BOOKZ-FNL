@@ -709,7 +709,7 @@ export const applyBuyBackBoost = (
 
   const spendResult = spendMarqs(
     boostOption.marqs,
-    `Buy Back Boost ${tier} on "${bookTitle || bookId}" (+${boostOption.spots} spots)`,
+    `Buy Book Boost ${tier} on "${bookTitle || bookId}" (+${boostOption.spots} spots)`,
     bookId,
     'boost'
   );

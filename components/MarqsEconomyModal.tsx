@@ -301,7 +301,7 @@ const MarqsEconomyModal: React.FC<MarqsEconomyModalProps> = ({
               {[
                 { id: 'wallet', label: 'Marq Wallet', renderIcon: () => <MarqsLogo size={14} /> },
                 { id: 'author', label: 'Author Footprint', renderIcon: () => <User size={14} /> },
-                { id: 'boost', label: 'Buy Back Boost', renderIcon: () => <Flame size={14} /> },
+                { id: 'boost', label: 'Buy Book Boost', renderIcon: () => <Flame size={14} /> },
                 { id: 'earn', label: 'Earning Table', renderIcon: () => <TrendingUp size={14} /> },
                 { id: 'history', label: 'Ledger History', renderIcon: () => <History size={14} /> },
                 { id: 'security', label: 'Security & Password', renderIcon: () => <ShieldCheck size={14} /> }
@@ -446,7 +446,7 @@ const MarqsEconomyModal: React.FC<MarqsEconomyModalProps> = ({
                             <h4 className="text-xs font-black uppercase tracking-wider">1. Push Book Momentum</h4>
                           </div>
                           <p className="text-[11px] text-slate-400 leading-relaxed">
-                            Spend Marq's on <span className="text-amber-300 font-bold">Buy Back Boosts</span> to move your favorite book or your own uploaded works up to +10 spots higher on the archive shelves.
+                            Spend Marq's on <span className="text-amber-300 font-bold">Buy Book Boosts</span> to move your favorite book or your own uploaded works up to +10 spots higher on the archive shelves.
                           </p>
                         </div>
 
@@ -540,9 +540,23 @@ const MarqsEconomyModal: React.FC<MarqsEconomyModalProps> = ({
                     </div>
                   )}
 
-                  {/* TAB 3: BUY BACK BOOST */}
+                  {/* TAB 3: BUY BOOK BOOST */}
                   {activeTab === 'boost' && (
                     <div className="space-y-6">
+                      {/* Clear Plain-Language Explanation */}
+                      <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-amber-400/20 space-y-2">
+                        <div className="flex items-center gap-2 text-amber-400">
+                          <Flame size={16} />
+                          <span className="text-[10px] font-black uppercase tracking-widest">How Buy Book Boost Works</span>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          Books load in order on the shelf. A <strong className="text-white font-bold">Buy Book Boost</strong> simply pushes your selected book up the list by <strong className="text-amber-400 font-bold">+3, +4, +5, or +10 spots</strong> so it sits higher in the feed.
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-medium">
+                          No complex rules or timers — pick a book, choose how many spots to bump it up, and redeem with Marq's or Stripe.
+                        </p>
+                      </div>
+
                       {boostSuccessMsg && (
                         <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-3 text-emerald-300">
                           <CheckCircle2 size={18} className="shrink-0" />
