@@ -25,6 +25,11 @@ import {
   lockWalletSession, 
   setAuthorName 
 } from './userProfile';
+import {
+  recordLedgerAction,
+  getLedgerEntries,
+  getLedgerStats
+} from './ledger';
 
 export { 
   getUserProfile, 
@@ -36,6 +41,9 @@ export {
   unlockWalletSession, 
   lockWalletSession, 
   setAuthorName,
+  recordLedgerAction,
+  getLedgerEntries,
+  getLedgerStats,
   MARQS_PER_USD 
 };
 
@@ -110,6 +118,20 @@ export const saveBook = async (metadata: BookMetadata, data: BookData, userId: s
     reads: 0,
     upvotes: 0
   });
+
+  // Record action to The Ledger
+  recordLedgerAction({
+    action: 'upload',
+    actor: metadata.author,
+    targetTitle: metadata.title,
+    targetId: metadata.id,
+    targetPath: `/book/${metadata.id}`,
+    metadata: {
+      genre: metadata.genre,
+      totalPages: metadata.pages,
+      marqsAmount: 10
+    }
+  }).catch(() => {});
 };
 
 export const getBookBoosts = (): Record<string, { boostScore: number; boostTier: 'X3' | 'X4' | 'X5' | 'X10'; boostExpires: number }> => {
@@ -563,6 +585,19 @@ export const subscribeToNewsletter = async (email: string): Promise<void> => {
     }
     throw error;
   }
+
+  // Record action to The Ledger
+  recordLedgerAction({
+    action: 'newsletter_signup',
+    actor: email.split('@')[0] || 'Subscriber',
+    targetTitle: 'Marqs Membership',
+    targetPath: '/newsletter',
+    metadata: {
+      marqsAmount: 3000,
+      usdValue: 3.00,
+      details: '$3.00 Marqs Welcome Credit'
+    }
+  }).catch(() => {});
 };
 
 export const saveOrderToArchive = async (email: string, orderInfo: string): Promise<void> => {
@@ -719,6 +754,19 @@ export const applyBuyBackBoost = (
   }
 
   setBookBoost(bookId, tier);
+
+  // Record action to The Ledger
+  recordLedgerAction({
+    action: 'boost',
+    targetTitle: bookTitle || bookId,
+    targetId: bookId,
+    targetPath: `/book/${bookId}`,
+    metadata: {
+      tier,
+      marqsAmount: boostOption.marqs,
+      usdValue: boostOption.priceUsd
+    }
+  }).catch(() => {});
 
   return {
     success: true,

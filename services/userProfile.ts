@@ -1,6 +1,7 @@
 import { getSupabase } from './supabase';
 import { getDeviceId } from './deviceId';
 import { UserProfile, UploadedBookRef, MarqsTransaction, MarqsAction, MARQS_EARNING_RATES, MARQS_PER_USD } from '../types';
+import { recordLedgerAction } from './ledger';
 
 const PROFILE_STORAGE_KEY_PREFIX = 'zetsu_user_profile_';
 const WALLET_UNLOCKED_SESSION_KEY = 'zetsu_wallet_unlocked';
@@ -349,8 +350,22 @@ export const lockWalletSession = (): void => {
  */
 export const setAuthorName = (name: string): UserProfile => {
   const profile = getUserProfile();
-  profile.authorName = name.trim() || 'Anonymous Archivist';
+  const cleanName = name.trim() || 'Anonymous Archivist';
+  const previousName = profile.authorName;
+  profile.authorName = cleanName;
   saveUserProfile(profile);
+
+  if (cleanName !== 'Anonymous Archivist' && cleanName !== previousName) {
+    recordLedgerAction({
+      action: 'join',
+      actor: cleanName,
+      targetTitle: `${cleanName}'s Profile`,
+      targetId: cleanName,
+      targetPath: `/author/${encodeURIComponent(cleanName)}`,
+      title: `Archivist ${cleanName} initialized author entity profile`
+    }).catch(() => {});
+  }
+
   return profile;
 };
 

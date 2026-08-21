@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { BookMetadata, BookData } from '../types';
 import { renderPdfPage } from '../services/pdfService';
-import { getBookMetadata, getBookData, awardMarqs } from '../services/db';
+import { getBookMetadata, getBookData, awardMarqs, recordLedgerAction } from '../services/db';
 import { 
   ChevronUp, 
   ChevronDown, 
@@ -48,6 +48,19 @@ const BookViewer: React.FC = () => {
     if (metadata && !readPagesRef.current.has(currentPage)) {
       readPagesRef.current.add(currentPage);
       awardMarqs('read_page', `Read Page ${currentPage} of "${metadata.title}"`);
+      
+      // Record action to The Ledger
+      recordLedgerAction({
+        action: 'read_page',
+        targetTitle: metadata.title,
+        targetId: metadata.id,
+        targetPath: `/read/${metadata.id}`,
+        metadata: {
+          page: currentPage,
+          totalPages: metadata.pages,
+          marqsAmount: 0.25
+        }
+      }).catch(() => {});
     }
   }, [currentPage, metadata]);
 

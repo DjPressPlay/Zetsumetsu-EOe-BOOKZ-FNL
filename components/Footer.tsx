@@ -24,7 +24,17 @@ const Footer: React.FC = () => {
           Unauthorized use or reproduction is prohibited.
         </p>
         
-        <div className="pt-12 flex justify-center">
+        <div className="pt-8 flex items-center justify-center">
+          <Link 
+            to="/ledger" 
+            className="text-[10px] font-black text-[#00c2ff]/70 hover:text-[#00c2ff] uppercase tracking-widest flex items-center gap-1.5 transition-colors"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00c2ff] animate-pulse" />
+            The Public Ledger
+          </Link>
+        </div>
+
+        <div className="pt-4 flex justify-center">
           {/* Single Discreet Dot - Opens the Storage Page */}
           <Link 
             to="/archive"

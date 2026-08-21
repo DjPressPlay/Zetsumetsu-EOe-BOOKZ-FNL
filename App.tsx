@@ -8,6 +8,8 @@ import SocialPage from './components/SocialPage';
 import BookViewer from './components/BookViewer';
 import AuthorPage from './components/AuthorPage';
 import Archive from './components/Archive';
+import Ledger from './components/Ledger';
+import NewsletterPage from './components/NewsletterPage';
 import NewsletterCTA from './components/NewsletterCTA';
 import Footer from './components/Footer';
 import Walkthrough from './components/Walkthrough';
@@ -83,6 +85,18 @@ CREATE TABLE IF NOT EXISTS newsletter_emails (
   email TEXT NOT NULL,
   order_info TEXT,
   signup_date TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ledger_entries (
+  id TEXT PRIMARY KEY,
+  action TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  title TEXT NOT NULL,
+  target_id TEXT,
+  target_title TEXT,
+  target_path TEXT NOT NULL,
+  timestamp BIGINT NOT NULL,
+  metadata JSONB DEFAULT '{}'::jsonb
 );
 
 -- Optional: Function to increment count atomically
@@ -417,6 +431,8 @@ const AppContent: React.FC = () => {
         <Route path="/book/:id" element={<SocialPage />} />
         <Route path="/read/:id" element={<BookViewer />} />
         <Route path="/author/:name" element={<AuthorPage />} />
+        <Route path="/ledger" element={<Ledger />} />
+        <Route path="/newsletter" element={<NewsletterPage />} />
         <Route path="/archive" element={<Archive />} />
       </Routes>
     </div>

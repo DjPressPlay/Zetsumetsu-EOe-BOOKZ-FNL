@@ -48,6 +48,7 @@ import {
   getUserMarqs,
   spendMarqs,
   awardMarqs,
+  recordLedgerAction,
   MARQS_PER_USD
 } from '../services/db';
 import { getDeviceId, getDeviceIdHistory } from '../services/deviceId';
@@ -346,6 +347,21 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
         // Award 25 marqs for copy purchase engagement
         awardMarqs('buy_copies', `Copy purchase reward for "${selectedBook.title}"`);
 
+        // Record to The Ledger
+        recordLedgerAction({
+          action: 'buy_copies',
+          actor: orderData.name || 'Anonymous Reader',
+          targetTitle: selectedBook.title,
+          targetId: selectedBook.id,
+          targetPath: `/book/${selectedBook.id}`,
+          metadata: {
+            copies: orderData.quantity,
+            format: orderData.format,
+            marqsAmount: marqsNeeded,
+            details: `Physical Print: ${orderData.format} x${orderData.quantity}`
+          }
+        }).catch(() => {});
+
         // If shipping is $0 (rare), notify directly
         if (shippingCents <= 0) {
           showToast(
@@ -385,6 +401,22 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
 
         // Award 25 marqs for buying copies
         awardMarqs('buy_copies', `Copy purchase reward for "${selectedBook.title}"`);
+
+        // Record to The Ledger
+        recordLedgerAction({
+          action: 'buy_copies',
+          actor: orderData.name || 'Anonymous Reader',
+          targetTitle: selectedBook.title,
+          targetId: selectedBook.id,
+          targetPath: `/book/${selectedBook.id}`,
+          metadata: {
+            copies: orderData.quantity,
+            format: orderData.format,
+            usdValue: totalAmountCents / 100,
+            marqsAmount: 25,
+            details: `USD Print Order: ${orderData.format} x${orderData.quantity}`
+          }
+        }).catch(() => {});
 
         const response = await fetch('/api/create-checkout-session', {
           method: 'POST',
@@ -741,6 +773,20 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                     <span className="min-[430px]:hidden">PRO</span>
                   </button>
                 )}
+
+                {/* The Ledger Link */}
+                <Link
+                  to="/ledger"
+                  className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 md:py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:border-[#00c2ff]/40 text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider rounded-full transition-all shrink-0 active:scale-95 group shadow-xs"
+                  title="The Ledger: Real-time public activity stream & crawlable archive index"
+                >
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00c2ff] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00c2ff]"></span>
+                  </span>
+                  <span className="hidden sm:inline">THE LEDGER</span>
+                  <span className="sm:hidden">LEDGER</span>
+                </Link>
 
                 {/* Submit Data Button - Always visible with icon and text */}
                 <button 

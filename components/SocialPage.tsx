@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { BookMetadata, Comment } from '../types';
-import { getBookMetadata, incrementBookReads, incrementBookUpvotes, getComments, addComment, checkUserUpvote, checkUserCommented, awardMarqs } from '../services/db';
+import { getBookMetadata, incrementBookReads, incrementBookUpvotes, getComments, addComment, checkUserUpvote, checkUserCommented, awardMarqs, recordLedgerAction } from '../services/db';
 import { getDeviceId } from '../services/deviceId';
 import { normalizeSectorName } from '../services/categories';
 import Footer from './Footer';
@@ -63,6 +63,16 @@ const SocialPage: React.FC = () => {
             if (!viewedRef.current) {
               viewedRef.current = true;
               awardMarqs('view', `Viewed "${bookData.title}"`);
+              recordLedgerAction({
+                action: 'view',
+                targetTitle: bookData.title,
+                targetId: bookData.id,
+                targetPath: `/book/${bookData.id}`,
+                metadata: {
+                  genre: bookData.genre,
+                  marqsAmount: 5
+                }
+              }).catch(() => {});
             }
           }
           setComments(commentData);
@@ -104,6 +114,20 @@ const SocialPage: React.FC = () => {
 
       // Award Marqs for comment
       awardMarqs('comment', `Comment on "${book?.title || 'Archive'}"`);
+
+      // Record to The Ledger
+      recordLedgerAction({
+        action: 'comment',
+        actor: commentAuthor,
+        targetTitle: book?.title || 'Book',
+        targetId: id,
+        targetPath: `/book/${id}`,
+        title: `${commentAuthor} commented on "${book?.title || 'Archive'}"`,
+        metadata: {
+          marqsAmount: 5,
+          details: newComment.substring(0, 80)
+        }
+      }).catch(() => {});
     } catch (err: any) {
       console.error('Failed to add comment:', err);
       setCommentError(err?.message || 'Comment could not be posted.');
@@ -132,6 +156,15 @@ const SocialPage: React.FC = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     awardMarqs('share', `Shared link for "${book.title}"`);
+    recordLedgerAction({
+      action: 'share',
+      targetTitle: book.title,
+      targetId: book.id,
+      targetPath: `/book/${book.id}`,
+      metadata: {
+        marqsAmount: 5
+      }
+    }).catch(() => {});
     setTimeout(() => setCopied(false), 2000);
   };
 

@@ -39,6 +39,39 @@ export type MarqsAction =
   | 'purchase_book'
   | 'bonus';
 
+export type LedgerActionType = 
+  | 'join'
+  | 'newsletter_signup'
+  | 'read_page'
+  | 'upload'
+  | 'view'
+  | 'comment'
+  | 'share'
+  | 'buy_copies'
+  | 'boost';
+
+export interface LedgerEntry {
+  id: string;
+  action: LedgerActionType;
+  title: string;
+  actor: string;
+  targetTitle?: string;
+  targetId?: string;
+  targetPath: string;
+  timestamp: number;
+  metadata?: {
+    page?: number;
+    totalPages?: number;
+    genre?: string;
+    tier?: string;
+    copies?: number;
+    format?: string;
+    marqsAmount?: number;
+    usdValue?: number;
+    details?: string;
+  };
+}
+
 export interface MarqsTransaction {
   id: string;
   action: MarqsAction;
