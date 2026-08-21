@@ -1,5 +1,6 @@
 {
   "name": "Zetsumetsu EOe BOOKZ",
   "description": "Zetsumetsu EOe BOOKZ is a modern digital library. We transform static PDF books into beautiful, interactive pages that are easy to read and share.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

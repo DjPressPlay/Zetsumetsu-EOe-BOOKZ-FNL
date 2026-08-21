@@ -119,79 +119,135 @@ const SocialPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-[1600px] mx-auto p-6 flex justify-between items-center">
-        <Link to="/" className="p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-all flex items-center gap-2">
-          <ArrowLeft size={18} />
-          <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
+    <div className="min-h-screen bg-[#020202] text-white flex flex-col">
+      {/* Top Header Navigation */}
+      <div className="max-w-[1600px] w-full mx-auto px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center border-b border-white/5">
+        <Link 
+          to="/" 
+          className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2"
+        >
+          <ArrowLeft size={16} className="text-[#00c2ff]" />
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Back to Archives</span>
         </Link>
-        <button onClick={copyUrl} className="bg-[#00c2ff] text-black px-6 py-3 rounded-xl font-black flex items-center gap-2 uppercase text-[10px] tracking-widest">
-          {copied ? <Check size={16} /> : <LinkIcon size={16} />}
-          {copied ? 'Copied' : 'Copy Link'}
+        
+        <button 
+          onClick={copyUrl} 
+          className="bg-[#00c2ff] text-black px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-black flex items-center gap-2 uppercase text-[9px] sm:text-[10px] tracking-widest hover:bg-[#38d4ff] transition-all shadow-[0_0_15px_rgba(0,194,255,0.25)]"
+        >
+          {copied ? <Check size={14} /> : <LinkIcon size={14} />}
+          {copied ? 'Copied' : 'Share Link'}
         </button>
       </div>
 
-      <main className="max-w-6xl mx-auto px-6 py-12 md:py-24 grid md:grid-cols-2 gap-20 items-center">
-        <div className="relative">
-          <div className="aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 bg-[#0a0a0a] flex items-center justify-center">
-            <img src={book.thumbnail} alt={book.title} className="max-w-full max-h-full object-contain p-12" />
-          </div>
-          <div className="mt-8 flex justify-center gap-10">
-            <div className="flex flex-col items-center gap-2 text-[#00c2ff]">
-              <Eye size={28} />
-              <span className="text-[10px] font-black uppercase">{reads} Reads</span>
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 md:py-16 grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12 md:gap-16 items-start">
+        {/* Left Column: Book Cover / Preview Showcase */}
+        <div className="flex flex-col items-center w-full max-w-sm sm:max-w-md mx-auto">
+          <div className="relative w-full aspect-[3/4] max-h-[460px] sm:max-h-[520px] rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 bg-[#0a0f14] shadow-[0_15px_45px_rgba(0,0,0,0.85)] flex items-center justify-center p-3 sm:p-4 group">
+            {/* Ambient Blurred Backdrop */}
+            <img 
+              src={book.thumbnail} 
+              alt="" 
+              aria-hidden="true" 
+              className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-20 scale-125 pointer-events-none" 
+            />
+            
+            {/* Main Cover Image */}
+            <img 
+              src={book.thumbnail} 
+              alt={book.title} 
+              className="relative z-10 max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]" 
+            />
+            
+            {/* Gradient Overlays */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none z-20" />
+            <div className="absolute top-3 left-3 z-30">
+              <span className="px-2.5 py-1 bg-black/70 backdrop-blur-md text-[#00c2ff] border border-[#00c2ff]/30 rounded-lg text-[8px] font-black uppercase tracking-widest">
+                {book.genre || 'ARCHIVE'}
+              </span>
             </div>
+          </div>
+
+          {/* Social Interactions Strip */}
+          <div className="mt-4 sm:mt-6 w-full bg-[#0a0f14]/80 backdrop-blur-md border border-white/5 rounded-2xl p-2.5 sm:p-3 flex justify-around items-center">
+            <div className="flex flex-col items-center gap-1 text-[#00c2ff]">
+              <Eye size={20} className="sm:w-6 sm:h-6" />
+              <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-slate-300">{reads} Reads</span>
+            </div>
+
+            <div className="w-[1px] h-6 bg-white/10" />
+
             <button 
               onClick={handleUpvote}
               disabled={hasUpvoted}
-              className={`flex flex-col items-center gap-2 transition-all group ${hasUpvoted ? 'text-[#FFD700]' : 'text-white hover:text-[#00c2ff]'}`}
+              className={`flex flex-col items-center gap-1 transition-all group ${hasUpvoted ? 'text-[#FFD700]' : 'text-white hover:text-[#00c2ff]'}`}
             >
               <div className="relative">
-                <ChevronUp size={28} className={hasUpvoted ? '' : 'group-hover:-translate-y-1 transition-transform'} />
-                <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${hasUpvoted ? 'bg-[#FFD700]' : 'bg-[#00c2ff]'}`} />
+                <ChevronUp size={20} className={`sm:w-6 sm:h-6 ${hasUpvoted ? '' : 'group-hover:-translate-y-0.5 transition-transform'}`} />
+                <div className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full animate-pulse ${hasUpvoted ? 'bg-[#FFD700]' : 'bg-[#00c2ff]'}`} />
               </div>
-              <span className="text-[10px] font-black uppercase">{upvotes} Momentum</span>
+              <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">{upvotes} Momentum</span>
             </button>
-            <button onClick={copyUrl} className="flex flex-col items-center gap-2 text-slate-500 hover:text-[#00c2ff] transition-colors">
-              <Share2 size={28} />
-              <span className="text-[10px] font-black uppercase">Share</span>
+
+            <div className="w-[1px] h-6 bg-white/10" />
+
+            <button 
+              onClick={copyUrl} 
+              className="flex flex-col items-center gap-1 text-slate-400 hover:text-[#00c2ff] transition-colors"
+            >
+              <Share2 size={20} className="sm:w-6 sm:h-6" />
+              <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">{copied ? 'Copied' : 'Share'}</span>
             </button>
           </div>
         </div>
 
-        <div className="space-y-8">
+        {/* Right Column: Book Info, Stats & Primary Action */}
+        <div className="flex flex-col justify-center space-y-4 sm:space-y-6 w-full">
           <div>
-            <span className="px-3 py-1 bg-[#00c2ff]/10 text-[#00c2ff] border border-[#00c2ff]/20 rounded-md text-[10px] font-black uppercase tracking-widest mb-4 inline-block">
-              {book.genre}
+            <span className="px-2.5 py-1 bg-[#00c2ff]/10 text-[#00c2ff] border border-[#00c2ff]/20 rounded-md text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-2 sm:mb-3 inline-block">
+              {book.genre || 'Standard Archival Format'}
             </span>
-            <h1 className="text-5xl font-black uppercase italic mb-2">{book.title}</h1>
-            <p className="text-slate-500 font-bold text-xl uppercase">NEURAL_ID: {book.author}</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black uppercase italic tracking-tight leading-tight text-white mb-2">
+              {book.title}
+            </h1>
+            <Link 
+              to={`/author/${encodeURIComponent(book.author)}`}
+              className="text-slate-400 hover:text-[#00c2ff] font-bold text-xs sm:text-sm md:text-base uppercase tracking-wide inline-flex items-center gap-1.5 transition-colors"
+            >
+              <span>NEURAL_ID:</span>
+              <span className="text-[#00c2ff]">{book.author}</span>
+            </Link>
           </div>
 
-          <div className="p-8 bg-[#0a0a0a] rounded-3xl border border-white/5 space-y-4">
-            <div className="flex justify-between border-b border-white/5 pb-3">
-              <span className="text-slate-500 text-[10px] font-black uppercase">ID</span>
-              <span className="text-white text-[10px] font-mono">{book.id}</span>
+          {/* Quick Details Card */}
+          <div className="p-4 sm:p-5 bg-[#0a0f14] rounded-2xl border border-white/5 space-y-3">
+            <div className="flex justify-between items-center border-b border-white/5 pb-2.5">
+              <span className="text-slate-500 text-[9px] font-black uppercase tracking-wider">Sector Identifier</span>
+              <span className="text-white text-[9px] sm:text-[10px] font-mono truncate max-w-[180px] sm:max-w-none">{book.id}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500 text-[10px] font-black uppercase">Length</span>
-              <span className="text-white text-[10px] font-black uppercase">{book.pages} Pages</span>
+            <div className="flex justify-between items-center border-b border-white/5 pb-2.5">
+              <span className="text-slate-500 text-[9px] font-black uppercase tracking-wider">Archival Length</span>
+              <span className="text-[#00c2ff] text-[9px] sm:text-[10px] font-black uppercase">{book.pages} Pages</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 text-[9px] font-black uppercase tracking-wider">Bitstream Format</span>
+              <span className="text-slate-300 text-[9px] sm:text-[10px] font-mono uppercase">Interactive PDF</span>
             </div>
           </div>
 
+          {/* Launch Reader CTA */}
           <Link 
             to={`/read/${book.id}`} 
             onClick={() => incrementBookReads(book.id)}
-            className="w-full bg-[#00c2ff] text-black py-5 rounded-2xl font-black text-center text-xl flex items-center justify-center gap-3 uppercase hover:scale-[1.02] transition-transform"
+            className="w-full bg-[#00c2ff] text-black py-3.5 sm:py-4 md:py-5 rounded-2xl font-black text-center text-sm sm:text-base md:text-lg flex items-center justify-center gap-2.5 sm:gap-3 uppercase hover:bg-[#38d4ff] hover:scale-[1.01] active:scale-[0.99] transition-all shadow-[0_0_25px_rgba(0,194,255,0.3)]"
           >
-            <BookOpen size={24} />
-            Read Book
+            <BookOpen size={20} className="sm:w-5 sm:h-5" />
+            <span>Read Book</span>
           </Link>
         </div>
       </main>
 
       {/* Leave Comment (Comments) */}
-      <section className="max-w-4xl mx-auto px-6 py-20 border-t border-white/5">
+      <section className="max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-16 border-t border-white/5">
         <div className="flex items-center gap-4 mb-12">
           <MessageSquare size={24} className="text-[#00c2ff]" />
           <h2 className="text-2xl font-black uppercase italic tracking-tight">Leave Comment</h2>
