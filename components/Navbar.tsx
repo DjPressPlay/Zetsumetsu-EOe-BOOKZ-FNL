@@ -1790,7 +1790,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                 <div className="pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-[10px] text-slate-400">
                   <div>
                     <p className="font-bold text-white uppercase tracking-wider">
-                      Created by Kevin Suber (Artworqq)
+                      Created by Artworqq Kevin Suber
                     </p>
                     <p className="text-slate-400">
                       © 2024–2026 Zetsumetsu Corporation™ · Zetsu EDU™
