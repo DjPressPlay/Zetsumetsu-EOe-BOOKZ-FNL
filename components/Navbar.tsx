@@ -27,7 +27,8 @@ import {
   Layers,
   Flame,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Coins
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -40,11 +41,18 @@ import {
   saveOrderToArchive, 
   getUserQuota, 
   UserQuota, 
-  FREE_UPLOAD_LIMIT 
+  FREE_UPLOAD_LIMIT,
+  getUserMarqs,
+  spendMarqs,
+  awardMarqs,
+  MARQS_PER_USD
 } from '../services/db';
 import { getDeviceId, getDeviceIdHistory } from '../services/deviceId';
-import { BookMetadata, BookData } from '../types';
+import { BookMetadata, BookData, UserMarqsProfile } from '../types';
 import PricingModal from './PricingModal';
+import MarqsEconomyModal from './MarqsEconomyModal';
+import MarqsToast from './MarqsToast';
+import MarqsLogo from './MarqsLogo';
 
 interface NavbarProps {
   searchQuery?: string;
@@ -66,9 +74,13 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [isQuotaPopoverOpen, setIsQuotaPopoverOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
+  const [isMarqsModalOpen, setIsMarqsModalOpen] = useState(false);
+  const [marqsModalTab, setMarqsModalTab] = useState<'wallet' | 'boost' | 'earn' | 'history'>('wallet');
+  const [userMarqs, setUserMarqs] = useState<UserMarqsProfile>(getUserMarqs());
   const [shopSearch, setShopSearch] = useState("");
   const [selectedBook, setSelectedBook] = useState<BookMetadata | null>(null);
   const [orderStep, setOrderStep] = useState<'selection' | 'form'>('selection');
+  const [paymentMethod, setPaymentMethod] = useState<'usd' | 'marqs'>('usd');
   const [allBooks, setAllBooks] = useState<BookMetadata[]>([]);
   const [orderData, setOrderData] = useState({ 
     name: '', 
@@ -110,6 +122,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       const quotaData = await getUserQuota();
       setQuota(quotaData);
       setIsPremium(quotaData.isPremium);
+      setUserMarqs(getUserMarqs());
     } catch (err) {
       console.error('Failed to load quota:', err);
     }
@@ -124,12 +137,25 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       refreshUserData();
     };
 
+    const handleMarqsUpdate = () => {
+      setUserMarqs(getUserMarqs());
+    };
+
+    const handleOpenMarqs = (e: any) => {
+      if (e.detail?.tab) setMarqsModalTab(e.detail.tab);
+      setIsMarqsModalOpen(true);
+    };
+
     window.addEventListener('zetsu-quota-updated', handleQuotaUpdate);
+    window.addEventListener('zetsu-marqs-updated', handleMarqsUpdate);
     window.addEventListener('show-quota-modal', () => setIsQuotaPopoverOpen(true));
+    window.addEventListener('open-marqs-modal', handleOpenMarqs);
 
     return () => {
       window.removeEventListener('zetsu-quota-updated', handleQuotaUpdate);
+      window.removeEventListener('zetsu-marqs-updated', handleMarqsUpdate);
       window.removeEventListener('show-quota-modal', () => setIsQuotaPopoverOpen(true));
+      window.removeEventListener('open-marqs-modal', handleOpenMarqs);
     };
   }, []);
 
@@ -221,6 +247,9 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       setUploadStatus('success');
       setAllBooks(prev => [metadata, ...prev]);
 
+      // Award 10 Marqs for uploading a book to the archives
+      awardMarqs('upload', `Uploaded "${formData.title}" to archives`);
+
       if (!newQuota.isPremium) {
         if (newQuota.remainingUploads === 0) {
           showToast(
@@ -268,38 +297,104 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
 
     try {
       const deviceId = getDeviceId();
-      // Save order info to newsletter_emails archive
-      const orderInfo = `ORDER: ${selectedBook.title} (${orderData.format}) | Name: ${orderData.name} | Address: ${orderData.address} | Shipping: $${shippingCost.toFixed(2)}`;
-      await saveOrderToArchive(orderData.email, orderInfo);
-
-      // Redirect to Stripe
       const priceMap = {
-        coloring: 1500,
-        board: 2499,
-        soft_photo: 3499,
-        hard_photo: 4999
+        coloring: 15.00,
+        board: 24.99,
+        soft_photo: 34.99,
+        hard_photo: 49.99
       };
-      const bookPrice = priceMap[orderData.format];
-      const subtotal = bookPrice * orderData.quantity;
-      const totalAmount = subtotal + Math.round(shippingCost * 100);
-      
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: deviceId,
-          type: 'pod',
-          bookTitle: selectedBook.title,
-          format: orderData.format,
-          amount: totalAmount,
-          quantity: orderData.quantity
-        }),
-      });
-      const session = await response.json();
-      if (session.url) window.location.href = session.url;
+      const unitPriceUsd = priceMap[orderData.format];
+      const shippingCents = Math.round(shippingCost * 100);
+
+      if (paymentMethod === 'marqs') {
+        const marqsNeeded = Math.round(unitPriceUsd * MARQS_PER_USD * orderData.quantity);
+        const currentProfile = getUserMarqs();
+
+        if (currentProfile.balance < marqsNeeded) {
+          showToast(
+            "Insufficient Marqs",
+            `You need ${marqsNeeded.toLocaleString()} Marqs but currently hold ${currentProfile.balance.toLocaleString()} Marqs. You can earn more by reading, sharing, and commenting!`,
+            "warning"
+          );
+          return;
+        }
+
+        // Deduct Marqs from user wallet
+        const spendResult = spendMarqs(
+          marqsNeeded,
+          `Physical Print Edition: ${selectedBook.title} (${orderData.format}) x${orderData.quantity}`
+        );
+
+        if (!spendResult.success) {
+          showToast("Payment Failed", spendResult.error || "Unable to spend Marqs", "error");
+          return;
+        }
+
+        // Save order info to newsletter_emails archive
+        const orderInfo = `ORDER [MARQS REDEEMED]: ${selectedBook.title} (${orderData.format}) x${orderData.quantity} | Marqs Spent: ${marqsNeeded} | Name: ${orderData.name} | Address: ${orderData.address} | Shipping: $${shippingCost.toFixed(2)}`;
+        await saveOrderToArchive(orderData.email, orderInfo);
+
+        // Award 25 marqs for copy purchase engagement
+        awardMarqs('buy_copies', `Copy purchase reward for "${selectedBook.title}"`);
+
+        // If shipping is $0 (rare), notify directly
+        if (shippingCents <= 0) {
+          showToast(
+            "Order Placed!",
+            `Successfully redeemed ${marqsNeeded.toLocaleString()} Marqs for ${selectedBook.title}. Free Shipping applied!`,
+            "success"
+          );
+          setIsShopOpen(false);
+          return;
+        }
+
+        // Create Stripe checkout session for shipping receipt only
+        const response = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: deviceId,
+            type: 'pod_marqs',
+            bookTitle: selectedBook.title,
+            format: orderData.format,
+            shippingAmount: shippingCents,
+            marqsSpent: marqsNeeded,
+            shippingName: orderData.name,
+            shippingAddress: orderData.address,
+            quantity: orderData.quantity
+          }),
+        });
+        const session = await response.json();
+        if (session.url) window.location.href = session.url;
+      } else {
+        // Full USD Checkout
+        const subtotalCents = Math.round(unitPriceUsd * 100) * orderData.quantity;
+        const totalAmountCents = subtotalCents + shippingCents;
+
+        const orderInfo = `ORDER [USD]: ${selectedBook.title} (${orderData.format}) x${orderData.quantity} | Total: $${(totalAmountCents / 100).toFixed(2)} | Name: ${orderData.name} | Address: ${orderData.address} | Shipping: $${shippingCost.toFixed(2)}`;
+        await saveOrderToArchive(orderData.email, orderInfo);
+
+        // Award 25 marqs for buying copies
+        awardMarqs('buy_copies', `Copy purchase reward for "${selectedBook.title}"`);
+
+        const response = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: deviceId,
+            type: 'pod',
+            bookTitle: selectedBook.title,
+            format: orderData.format,
+            amount: totalAmountCents,
+            quantity: orderData.quantity
+          }),
+        });
+        const session = await response.json();
+        if (session.url) window.location.href = session.url;
+      }
     } catch (err: any) {
       console.error('Order failed:', err);
-      alert(`Order initialization failed: ${err?.message || 'Bitstream unstable.'}`);
+      showToast('Order Initialization Failed', err?.message || 'Bitstream unstable.', 'error');
     }
   };
 
@@ -587,6 +682,24 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                 </div>
 
                 <div className="flex items-center gap-2 md:gap-4">
+                  {/* Marq's Native Economy Button */}
+                  <button 
+                    onClick={() => {
+                      setMarqsModalTab('wallet');
+                      setIsMarqsModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 px-2.5 sm:px-3.5 py-1.5 md:py-2 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/50 rounded-full transition-all group shadow-[0_0_18px_rgba(255,230,0,0.25)] active:scale-95"
+                    title="Zetsu EOE Bookz Marq's: Click to open wallet, boost your book rankings, or check earning rates"
+                  >
+                    <MarqsLogo size={13} glow />
+                    <span className="text-[9px] md:text-[10px] font-mono font-black text-amber-300 tracking-wider">
+                      {userMarqs.balance.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                    </span>
+                    <span className="hidden min-[480px]:inline text-[8px] font-black text-amber-400 uppercase tracking-widest pl-0.5">
+                      MARQ'S
+                    </span>
+                  </button>
+
                   {!isPremium && (
                     <button 
                       onClick={() => setIsPricingOpen(true)}
@@ -1161,6 +1274,54 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         {/* Order Form */}
                         <form onSubmit={handleOrderSubmit} className="space-y-6">
                           <div className="space-y-4">
+                            {/* Payment Method Selector */}
+                            <div className="p-1 bg-black/60 border border-white/10 rounded-2xl grid grid-cols-2 gap-1 mb-4">
+                              <button
+                                type="button"
+                                onClick={() => setPaymentMethod('usd')}
+                                className={`py-2.5 px-3 rounded-xl font-black text-[9px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                                  paymentMethod === 'usd'
+                                    ? 'bg-white text-black shadow'
+                                    : 'text-slate-400 hover:text-white'
+                                }`}
+                              >
+                                <CreditCard size={13} />
+                                <span>Stripe Checkout</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPaymentMethod('marqs')}
+                                className={`py-2.5 px-3 rounded-xl font-black text-[9px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                                  paymentMethod === 'marqs'
+                                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                                    : 'text-slate-400 hover:text-amber-400'
+                                }`}
+                              >
+                                <MarqsLogo size={13} />
+                                <span>Pay with Marq's</span>
+                              </button>
+                            </div>
+
+                            {paymentMethod === 'marqs' && (
+                              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 mb-2">
+                                <div className="flex items-center gap-2.5">
+                                  <MarqsLogo size={18} glow />
+                                  <div>
+                                    <p className="text-[9px] font-black text-amber-300 uppercase tracking-widest">
+                                      Marq's Balance Payment
+                                    </p>
+                                    <p className="text-[8px] text-slate-400 font-bold">
+                                      Book cost covered 100% by Marq's. Stripe processes shipping receipt only.
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Wallet Balance</span>
+                                  <span className="text-[10px] font-mono font-black text-amber-300">{userMarqs.balance.toLocaleString()} MARQ'S</span>
+                                </div>
+                              </div>
+                            )}
+
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
                               Choose your format and enter your shipping details below.
                             </p>
@@ -1168,34 +1329,42 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                               <button 
                                 type="button"
                                 onClick={() => setOrderData({...orderData, format: 'coloring'})}
-                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'coloring' ? 'bg-[#00c2ff] border-[#00c2ff] text-black' : 'bg-black border-white/10 text-white hover:border-white/20'}`}
+                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'coloring' ? (paymentMethod === 'marqs' ? 'bg-amber-500 border-amber-500 text-black' : 'bg-[#00c2ff] border-[#00c2ff] text-black') : 'bg-black border-white/10 text-white hover:border-white/20'}`}
                               >
                                 <span className="block text-[8px] font-black uppercase tracking-widest">Coloring Book style</span>
-                                <span className="block text-[11px] font-black mt-0.5">$15.00</span>
+                                <span className="block text-[11px] font-black mt-0.5">
+                                  {paymentMethod === 'marqs' ? '15,000 MARQS' : '$15.00'}
+                                </span>
                               </button>
                               <button 
                                 type="button"
                                 onClick={() => setOrderData({...orderData, format: 'board'})}
-                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'board' ? 'bg-[#00c2ff] border-[#00c2ff] text-black' : 'bg-black border-white/10 text-white hover:border-white/20'}`}
+                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'board' ? (paymentMethod === 'marqs' ? 'bg-amber-500 border-amber-500 text-black' : 'bg-[#00c2ff] border-[#00c2ff] text-black') : 'bg-black border-white/10 text-white hover:border-white/20'}`}
                               >
                                 <span className="block text-[8px] font-black uppercase tracking-widest">Board Book style</span>
-                                <span className="block text-[11px] font-black mt-0.5">$24.99</span>
+                                <span className="block text-[11px] font-black mt-0.5">
+                                  {paymentMethod === 'marqs' ? '24,990 MARQS' : '$24.99'}
+                                </span>
                               </button>
                               <button 
                                 type="button"
                                 onClick={() => setOrderData({...orderData, format: 'soft_photo'})}
-                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'soft_photo' ? 'bg-[#00c2ff] border-[#00c2ff] text-black' : 'bg-black border-white/10 text-white hover:border-white/20'}`}
+                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'soft_photo' ? (paymentMethod === 'marqs' ? 'bg-amber-500 border-amber-500 text-black' : 'bg-[#00c2ff] border-[#00c2ff] text-black') : 'bg-black border-white/10 text-white hover:border-white/20'}`}
                               >
                                 <span className="block text-[8px] font-black uppercase tracking-widest">Softcover Book style</span>
-                                <span className="block text-[11px] font-black mt-0.5">$34.99</span>
+                                <span className="block text-[11px] font-black mt-0.5">
+                                  {paymentMethod === 'marqs' ? '34,990 MARQS' : '$34.99'}
+                                </span>
                               </button>
                               <button 
                                 type="button"
                                 onClick={() => setOrderData({...orderData, format: 'hard_photo'})}
-                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'hard_photo' ? 'bg-[#00c2ff] border-[#00c2ff] text-black' : 'bg-black border-white/10 text-white hover:border-white/20'}`}
+                                className={`p-3 rounded-xl border transition-all text-left ${orderData.format === 'hard_photo' ? (paymentMethod === 'marqs' ? 'bg-amber-500 border-amber-500 text-black' : 'bg-[#00c2ff] border-[#00c2ff] text-black') : 'bg-black border-white/10 text-white hover:border-white/20'}`}
                               >
                                 <span className="block text-[8px] font-black uppercase tracking-widest">Hardcover Book style</span>
-                                <span className="block text-[11px] font-black mt-0.5">$49.99</span>
+                                <span className="block text-[11px] font-black mt-0.5">
+                                  {paymentMethod === 'marqs' ? '49,990 MARQS' : '$49.99'}
+                                </span>
                               </button>
                             </div>
 
@@ -1302,46 +1471,92 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                               <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
                                 <span className="text-slate-500">Unit Price</span>
                                 <span className="text-white">
-                                  ${orderData.format === 'coloring' ? '15.00' : 
-                                    orderData.format === 'board' ? '24.99' : 
-                                    orderData.format === 'soft_photo' ? '34.99' : '49.99'}
+                                  {paymentMethod === 'marqs' ? (
+                                    <span className="text-emerald-400 font-black">
+                                      0.00 USD <span className="text-[8px] text-amber-300">({(
+                                        orderData.format === 'coloring' ? 15000 : 
+                                        orderData.format === 'board' ? 24990 : 
+                                        orderData.format === 'soft_photo' ? 34990 : 49990
+                                      ).toLocaleString()} MARQS)</span>
+                                    </span>
+                                  ) : (
+                                    `$${(orderData.format === 'coloring' ? '15.00' : 
+                                        orderData.format === 'board' ? '24.99' : 
+                                        orderData.format === 'soft_photo' ? '34.99' : '49.99')}`
+                                  )}
                                 </span>
                               </div>
                               <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
                                 <span className="text-slate-500">Quantity</span>
                                 <span className="text-white">x{orderData.quantity}</span>
                               </div>
+
+                              {paymentMethod === 'marqs' && (
+                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                  <span className="text-slate-500">Marqs Subtotal</span>
+                                  <span className="text-amber-400 font-mono">
+                                    {(
+                                      (orderData.format === 'coloring' ? 15000 : 
+                                       orderData.format === 'board' ? 24990 : 
+                                       orderData.format === 'soft_photo' ? 34990 : 49990) * orderData.quantity
+                                    ).toLocaleString()} MARQS
+                                  </span>
+                                </div>
+                              )}
+
                               <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                                <span className="text-slate-500">Shipping</span>
+                                <span className="text-slate-500">Shipping (Stripe Receipt)</span>
                                 <span className={shippingCost > 0 ? "text-[#00c2ff]" : "text-slate-600"}>
                                   {shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : 'Enter Address'}
                                 </span>
                               </div>
+
                               <div className="h-px bg-white/10 my-2" />
                               <div className="flex justify-between items-center">
                                 <div className="space-y-1">
-                                  <span className="block text-[11px] font-black text-white uppercase tracking-widest">Total</span>
+                                  <span className="block text-[11px] font-black text-white uppercase tracking-widest">
+                                    {paymentMethod === 'marqs' ? 'Due Today (Shipping Only)' : 'Total Due'}
+                                  </span>
                                   <span className="block text-[8px] text-emerald-400 font-black uppercase tracking-widest">
-                                    Est. Delivery: 1 Week Min.
+                                    Est. Delivery: 1 Week Min. (+25 Marqs Reward)
                                   </span>
                                 </div>
-                                <span className="text-xl font-black text-[#00c2ff]">
+                                <span className={`text-xl font-black ${paymentMethod === 'marqs' ? 'text-amber-300' : 'text-[#00c2ff]'}`}>
                                   ${(
-                                    (orderData.format === 'coloring' ? 15.00 : 
-                                     orderData.format === 'board' ? 24.99 : 
-                                     orderData.format === 'soft_photo' ? 34.99 : 49.99) * orderData.quantity + shippingCost
+                                    paymentMethod === 'marqs' 
+                                      ? shippingCost 
+                                      : ((orderData.format === 'coloring' ? 15.00 : 
+                                          orderData.format === 'board' ? 24.99 : 
+                                          orderData.format === 'soft_photo' ? 34.99 : 49.99) * orderData.quantity + shippingCost)
                                   ).toFixed(2)}
                                 </span>
                               </div>
                             </div>
                           </div>
 
-                          <button type="submit" className="w-full bg-[#00c2ff] text-black py-5 rounded-2xl font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-[0_0_30px_rgba(0,194,255,0.2)] flex items-center justify-center gap-3">
-                            <CreditCard size={18} />
-                            Buy Now
+                          <button 
+                            type="submit" 
+                            className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center justify-center gap-3 ${
+                              paymentMethod === 'marqs'
+                                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-[0_0_30px_rgba(245,158,11,0.3)]'
+                                : 'bg-[#00c2ff] text-black shadow-[0_0_30px_rgba(0,194,255,0.2)]'
+                            }`}
+                          >
+                            {paymentMethod === 'marqs' ? <Coins size={18} /> : <CreditCard size={18} />}
+                            {paymentMethod === 'marqs' 
+                              ? `Redeem Marqs & Pay Shipping ($${shippingCost.toFixed(2)})`
+                              : `Stripe Checkout ($${(
+                                  ((orderData.format === 'coloring' ? 15.00 : 
+                                    orderData.format === 'board' ? 24.99 : 
+                                    orderData.format === 'soft_photo' ? 34.99 : 49.99) * orderData.quantity + shippingCost)
+                                ).toFixed(2)})`
+                            }
                           </button>
                           <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest text-center">
-                            Your order will be processed and shipped directly to you.
+                            {paymentMethod === 'marqs' 
+                              ? 'Your Marqs balance covers the book printing. You will only be billed the shipping receipt.'
+                              : 'Your order will be processed and shipped directly to you.'
+                            }
                           </p>
                         </form>
                       </div>
@@ -1507,6 +1722,15 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
         onClose={() => setIsPricingOpen(false)} 
         deviceId={getDeviceId()} 
       />
+
+      <MarqsEconomyModal
+        isOpen={isMarqsModalOpen}
+        onClose={() => setIsMarqsModalOpen(false)}
+        defaultTab={marqsModalTab}
+        availableBooks={allBooks}
+      />
+
+      <MarqsToast />
     </>
   );
 };

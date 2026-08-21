@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { BookMetadata, BookData } from '../types';
 import { renderPdfPage } from '../services/pdfService';
-import { getBookMetadata, getBookData } from '../services/db';
+import { getBookMetadata, getBookData, awardMarqs } from '../services/db';
 import { 
   ChevronUp, 
   ChevronDown, 
@@ -42,6 +42,14 @@ const BookViewer: React.FC = () => {
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const uiTimeoutRef = useRef<number | null>(null);
+  const readPagesRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (metadata && !readPagesRef.current.has(currentPage)) {
+      readPagesRef.current.add(currentPage);
+      awardMarqs('read_page', `Read Page ${currentPage} of "${metadata.title}"`);
+    }
+  }, [currentPage, metadata]);
 
   useEffect(() => {
     if (id) {

@@ -1,7 +1,43 @@
 
 import { getSupabase } from './supabase';
-import { BookMetadata, BookData, Comment } from '../types';
+import { 
+  BookMetadata, 
+  BookData, 
+  Comment, 
+  MarqsAction, 
+  MarqsTransaction, 
+  UserMarqsProfile, 
+  UserProfile,
+  UploadedBookRef,
+  MARQS_EARNING_RATES, 
+  BUY_BACK_BOOSTS,
+  MARQS_PER_USD 
+} from '../types';
 import { getDeviceId, getDeviceIdHistory } from './deviceId';
+import { 
+  getUserProfile, 
+  saveUserProfile, 
+  trackAuthorUploadedBook, 
+  setWalletPassword, 
+  verifyWalletPassword, 
+  isWalletUnlocked, 
+  unlockWalletSession, 
+  lockWalletSession, 
+  setAuthorName 
+} from './userProfile';
+
+export { 
+  getUserProfile, 
+  saveUserProfile, 
+  trackAuthorUploadedBook, 
+  setWalletPassword, 
+  verifyWalletPassword, 
+  isWalletUnlocked, 
+  unlockWalletSession, 
+  lockWalletSession, 
+  setAuthorName,
+  MARQS_PER_USD 
+};
 
 const BUCKET_NAME = 'bookz';
 export const FREE_UPLOAD_LIMIT = 5;
@@ -63,6 +99,53 @@ export const saveBook = async (metadata: BookMetadata, data: BookData, userId: s
     }]);
 
   if (dbError) throw dbError;
+
+  // Track book in author's profile
+  trackAuthorUploadedBook({
+    id: metadata.id,
+    title: metadata.title,
+    genre: metadata.genre,
+    uploadDate: metadata.uploadDate,
+    pages: metadata.pages,
+    reads: 0,
+    upvotes: 0
+  });
+};
+
+export const getBookBoosts = (): Record<string, { boostScore: number; boostTier: 'X3' | 'X4' | 'X5' | 'X10'; boostExpires: number }> => {
+  try {
+    const raw = localStorage.getItem('zetsu_book_boosts');
+    if (!raw) return {};
+    const boosts = JSON.parse(raw);
+    const now = Date.now();
+    // Filter out expired boosts (boosts last for 7 days)
+    const valid: Record<string, any> = {};
+    for (const [id, data] of Object.entries<any>(boosts)) {
+      if (data.boostExpires > now) {
+        valid[id] = data;
+      }
+    }
+    return valid;
+  } catch {
+    return {};
+  }
+};
+
+export const setBookBoost = (bookId: string, tier: 'X3' | 'X4' | 'X5' | 'X10') => {
+  try {
+    const boostMap: Record<string, number> = { X3: 3, X4: 4, X5: 5, X10: 10 };
+    const score = boostMap[tier] || 3;
+    const current = getBookBoosts();
+    current[bookId] = {
+      boostScore: (current[bookId]?.boostScore || 0) + score,
+      boostTier: tier,
+      boostExpires: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days active
+    };
+    localStorage.setItem('zetsu_book_boosts', JSON.stringify(current));
+    window.dispatchEvent(new CustomEvent('zetsu-boosts-updated', { detail: current }));
+  } catch (err) {
+    console.error('Failed to set book boost:', err);
+  }
 };
 
 export const getAllMetadata = async (): Promise<BookMetadata[]> => {
@@ -76,17 +159,32 @@ export const getAllMetadata = async (): Promise<BookMetadata[]> => {
 
   if (error) throw error;
   
-  return (data || []).map(item => ({
-    id: item.id,
-    title: item.title,
-    author: item.author,
-    genre: item.genre,
-    pages: item.pages,
-    thumbnail: item.thumbnail,
-    uploadDate: new Date(item.upload_date).getTime(),
-    reads: item.reads || 0,
-    upvotes: item.upvotes || 0
-  }));
+  const activeBoosts = getBookBoosts();
+
+  const books: BookMetadata[] = (data || []).map(item => {
+    const boost = activeBoosts[item.id];
+    return {
+      id: item.id,
+      title: item.title,
+      author: item.author,
+      genre: item.genre,
+      pages: item.pages,
+      thumbnail: item.thumbnail,
+      uploadDate: new Date(item.upload_date).getTime(),
+      reads: item.reads || 0,
+      upvotes: item.upvotes || 0,
+      boostScore: boost?.boostScore || 0,
+      boostTier: boost?.boostTier || null,
+      boostExpires: boost?.boostExpires
+    };
+  });
+
+  // Re-rank items so boosted books move spots up
+  return books.sort((a, b) => {
+    const boostDiff = (b.boostScore || 0) - (a.boostScore || 0);
+    if (boostDiff !== 0) return boostDiff;
+    return (b.upvotes || 0) - (a.upvotes || 0);
+  });
 };
 
 export const getBookMetadata = async (id: string): Promise<BookMetadata | null> => {
@@ -101,6 +199,9 @@ export const getBookMetadata = async (id: string): Promise<BookMetadata | null> 
 
   if (error) return null;
   
+  const activeBoosts = getBookBoosts();
+  const boost = activeBoosts[data.id];
+
   return {
     id: data.id,
     title: data.title,
@@ -110,7 +211,10 @@ export const getBookMetadata = async (id: string): Promise<BookMetadata | null> 
     thumbnail: data.thumbnail,
     uploadDate: new Date(data.upload_date).getTime(),
     reads: data.reads || 0,
-    upvotes: data.upvotes || 0
+    upvotes: data.upvotes || 0,
+    boostScore: boost?.boostScore || 0,
+    boostTier: boost?.boostTier || null,
+    boostExpires: boost?.boostExpires
   };
 };
 
@@ -500,3 +604,126 @@ export const getNewsletterEmails = async (): Promise<{ email: string, signup_dat
   }
   return data || [];
 };
+
+// ==========================================
+// MARQS ECONOMY SYSTEM & USER PROFILE BRIDGE
+// ==========================================
+
+export const getUserMarqs = (targetDeviceId?: string): UserMarqsProfile => {
+  const profile = getUserProfile(targetDeviceId);
+  return {
+    balance: profile.marqsBalance,
+    totalEarned: profile.totalEarned,
+    totalSpent: profile.totalSpent,
+    transactions: profile.transactions,
+    authorName: profile.authorName,
+    hasPassword: profile.hasPassword,
+    uploadedBooks: profile.uploadedBooks
+  };
+};
+
+export const awardMarqs = (
+  action: MarqsAction,
+  details: string,
+  bookId?: string,
+  customAmount?: number
+): { earned: number; newBalance: number } => {
+  const rateConfig = MARQS_EARNING_RATES[action];
+  const amount = customAmount !== undefined ? customAmount : (rateConfig?.marqs || 0);
+  const usdValue = customAmount !== undefined ? customAmount / MARQS_PER_USD : (rateConfig?.usd || 0);
+
+  const profile = getUserProfile();
+  if (amount <= 0) return { earned: 0, newBalance: profile.marqsBalance };
+
+  const newBalance = Math.round((profile.marqsBalance + amount) * 100) / 100;
+  const newEarned = Math.round((profile.totalEarned + amount) * 100) / 100;
+
+  const tx: MarqsTransaction = {
+    id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+    action,
+    amount,
+    usdValue,
+    timestamp: Date.now(),
+    details: details || `${rateConfig?.label || action} reward`,
+    bookId
+  };
+
+  profile.marqsBalance = newBalance;
+  profile.totalEarned = newEarned;
+  profile.transactions = [tx, ...profile.transactions.slice(0, 49)];
+
+  saveUserProfile(profile);
+
+  // Trigger floating earning event for UI notification
+  window.dispatchEvent(new CustomEvent('zetsu-marqs-earned', {
+    detail: { amount, usdValue, action, label: rateConfig?.label || action, details }
+  }));
+
+  return { earned: amount, newBalance };
+};
+
+export const spendMarqs = (
+  amount: number,
+  reason: string,
+  bookId?: string,
+  action: MarqsAction = 'purchase_book'
+): { success: boolean; newBalance: number; error?: string } => {
+  const profile = getUserProfile();
+  if (profile.marqsBalance < amount) {
+    return { 
+      success: false, 
+      newBalance: profile.marqsBalance, 
+      error: `Insufficient Marq's balance. Required: ${amount.toLocaleString()}, Available: ${profile.marqsBalance.toLocaleString()}` 
+    };
+  }
+
+  const newBalance = Math.round((profile.marqsBalance - amount) * 100) / 100;
+  const newSpent = Math.round((profile.totalSpent + amount) * 100) / 100;
+  const usdValue = amount / MARQS_PER_USD;
+
+  const tx: MarqsTransaction = {
+    id: 'tx_spend_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+    action,
+    amount: -amount,
+    usdValue,
+    timestamp: Date.now(),
+    details: reason,
+    bookId
+  };
+
+  profile.marqsBalance = newBalance;
+  profile.totalSpent = newSpent;
+  profile.transactions = [tx, ...profile.transactions.slice(0, 49)];
+
+  saveUserProfile(profile);
+  return { success: true, newBalance };
+};
+
+export const applyBuyBackBoost = (
+  bookId: string,
+  tier: 'X3' | 'X4' | 'X5' | 'X10',
+  bookTitle?: string
+): { success: boolean; newBalance: number; error?: string; spotsMoved: number } => {
+  const boostOption = BUY_BACK_BOOSTS.find(b => b.tier === tier);
+  if (!boostOption) return { success: false, newBalance: getUserMarqs().balance, error: 'Invalid boost tier', spotsMoved: 0 };
+
+  const spendResult = spendMarqs(
+    boostOption.marqs,
+    `Buy Back Boost ${tier} on "${bookTitle || bookId}" (+${boostOption.spots} spots)`,
+    bookId,
+    'boost'
+  );
+
+  if (!spendResult.success) {
+    return { success: false, newBalance: spendResult.newBalance, error: spendResult.error, spotsMoved: 0 };
+  }
+
+  setBookBoost(bookId, tier);
+
+  return {
+    success: true,
+    newBalance: spendResult.newBalance,
+    spotsMoved: boostOption.spots
+  };
+};
+

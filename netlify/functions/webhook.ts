@@ -1,8 +1,15 @@
 import { Handler } from "@netlify/functions";
 import Stripe from "stripe";
-import { updateUserCredits, updateUserPremium } from "../../services/db";
+import { updateUserPremium, saveOrderToArchive } from "../../services/db";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+let stripeClient: Stripe | null = null;
+function getStripe(): Stripe {
+  if (!stripeClient) {
+    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+  }
+  return stripeClient;
+}
+
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 
 export const handler: Handler = async (event, context) => {
@@ -14,6 +21,7 @@ export const handler: Handler = async (event, context) => {
   let stripeEvent;
 
   try {
+    const stripe = getStripe();
     stripeEvent = stripe.webhooks.constructEvent(
       event.body || "",
       sig,
@@ -28,11 +36,43 @@ export const handler: Handler = async (event, context) => {
 
   if (stripeEvent.type === "checkout.session.completed") {
     const session = stripeEvent.data.object as Stripe.Checkout.Session;
-    const { userId, type, amount } = session.metadata || {};
+    const { 
+      userId, 
+      type, 
+      bookTitle, 
+      format, 
+      quantity, 
+      marqsSpent, 
+      shippingName, 
+      shippingAddress, 
+      email,
+      boostTier,
+      bookId
+    } = session.metadata || {};
 
-    if (userId && type) {
-      if (type === "premium") {
-        await updateUserPremium(userId, true);
+    const customerEmail = email || session.customer_details?.email || (userId ? `${userId}@zetsu.local` : 'anonymous@zetsu.local');
+
+    if (type === "premium" && userId) {
+      await updateUserPremium(userId, true);
+    } else if (type === "pod_marqs" || type === "pod") {
+      const orderSummary = JSON.stringify({
+        paymentType: type,
+        bookTitle,
+        format,
+        quantity: Number(quantity) || 1,
+        marqsSpent: Number(marqsSpent) || 0,
+        amountChargedUsd: (session.amount_total || 0) / 100,
+        shippingName: shippingName || session.customer_details?.name || 'Customer',
+        shippingAddress: shippingAddress || 'Digital / Address provided at checkout',
+        stripeSessionId: session.id,
+        stripePaymentIntent: session.payment_intent,
+        date: new Date().toISOString()
+      });
+
+      try {
+        await saveOrderToArchive(customerEmail, orderSummary);
+      } catch (saveErr) {
+        console.error("Failed to archive order details:", saveErr);
       }
     }
   }
@@ -42,3 +82,4 @@ export const handler: Handler = async (event, context) => {
     body: JSON.stringify({ received: true }),
   };
 };
+

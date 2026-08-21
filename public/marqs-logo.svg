@@ -1,0 +1,37 @@
+<svg viewBox="0 0 160 270" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="marqs-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#FFE600" floodOpacity="0.4" />
+    </filter>
+  </defs>
+  <!-- Outer stroke with subtle warm orange accent line matching original graphic -->
+  <g stroke="#FF7A00" stroke-width="1.8" stroke-linejoin="miter" stroke-miterlimit="10">
+    <path
+      d="M 112 8 
+         L 112 86 
+         L 154 128 
+         L 154 232 
+         L 98 232 
+         L 48 182 
+         L 48 116 
+         L 74 116 
+         L 74 162 
+         L 102 190 
+         L 128 190 
+         L 128 140 
+         L 92 104 
+         L 92 46 
+         L 48 46 
+         L 6 88 
+         L 6 194 
+         L 48 236 
+         L 48 200 
+         L 28 180 
+         L 28 102 
+         L 54 76 
+         L 112 76 
+         Z"
+      fill="#FFE600"
+    />
+  </g>
+</svg>

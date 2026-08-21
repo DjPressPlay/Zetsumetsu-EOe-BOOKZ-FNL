@@ -1,11 +1,12 @@
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { BookMetadata, Comment } from '../types';
-import { getBookMetadata, incrementBookReads, incrementBookUpvotes, getComments, addComment, checkUserUpvote, checkUserCommented } from '../services/db';
+import { getBookMetadata, incrementBookReads, incrementBookUpvotes, getComments, addComment, checkUserUpvote, checkUserCommented, awardMarqs } from '../services/db';
 import { getDeviceId } from '../services/deviceId';
 import { normalizeSectorName } from '../services/categories';
 import Footer from './Footer';
+import MarqsEconomyModal from './MarqsEconomyModal';
+import MarqsLogo from './MarqsLogo';
 import { 
   Eye, 
   Share2, 
@@ -18,7 +19,9 @@ import {
   MessageSquare,
   Send,
   User,
-  Zap
+  Zap,
+  Flame,
+  Coins
 } from 'lucide-react';
 
 const SocialPage: React.FC = () => {
@@ -36,6 +39,9 @@ const SocialPage: React.FC = () => {
   const [commentAuthor, setCommentAuthor] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [isBoostModalOpen, setIsBoostModalOpen] = useState(false);
+  
+  const viewedRef = useRef(false);
 
   useEffect(() => {
     if (id) {
@@ -52,6 +58,12 @@ const SocialPage: React.FC = () => {
           if (bookData) {
             setReads(bookData.reads || 0);
             setUpvotes(bookData.upvotes || 0);
+            
+            // Award view marqs once per session per book
+            if (!viewedRef.current) {
+              viewedRef.current = true;
+              awardMarqs('view', `Viewed "${bookData.title}"`);
+            }
           }
           setComments(commentData);
           setHasUpvoted(upvoted);
@@ -89,6 +101,9 @@ const SocialPage: React.FC = () => {
       setComments(updatedComments);
       setNewComment('');
       setHasCommented(true);
+
+      // Award Marqs for comment
+      awardMarqs('comment', `Comment on "${book?.title || 'Archive'}"`);
     } catch (err: any) {
       console.error('Failed to add comment:', err);
       setCommentError(err?.message || 'Comment could not be posted.');
@@ -116,6 +131,7 @@ const SocialPage: React.FC = () => {
   const copyUrl = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
+    awardMarqs('share', `Shared link for "${book.title}"`);
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -131,13 +147,23 @@ const SocialPage: React.FC = () => {
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Back to Archives</span>
         </Link>
         
-        <button 
-          onClick={copyUrl} 
-          className="bg-[#00c2ff] text-black px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-black flex items-center gap-2 uppercase text-[9px] sm:text-[10px] tracking-widest hover:bg-[#38d4ff] transition-all shadow-[0_0_15px_rgba(0,194,255,0.25)]"
-        >
-          {copied ? <Check size={14} /> : <LinkIcon size={14} />}
-          {copied ? 'Copied' : 'Share Link'}
-        </button>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button 
+            onClick={() => setIsBoostModalOpen(true)}
+            className="bg-gradient-to-r from-amber-500 to-orange-500 text-black px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl font-black flex items-center gap-1.5 sm:gap-2 uppercase text-[9px] sm:text-[10px] tracking-widest hover:brightness-110 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+          >
+            <Flame size={14} className="fill-black" />
+            <span>Buy Back Boost</span>
+          </button>
+
+          <button 
+            onClick={copyUrl} 
+            className="bg-[#00c2ff] text-black px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl font-black flex items-center gap-1.5 sm:gap-2 uppercase text-[9px] sm:text-[10px] tracking-widest hover:bg-[#38d4ff] transition-all shadow-[0_0_15px_rgba(0,194,255,0.25)]"
+          >
+            {copied ? <Check size={14} /> : <LinkIcon size={14} />}
+            <span>{copied ? 'Copied (+5 Marqs)' : 'Share Link (+5 Marqs)'}</span>
+          </button>
+        </div>
       </div>
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 md:py-16 grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12 md:gap-16 items-start">
@@ -235,15 +261,25 @@ const SocialPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Launch Reader CTA */}
-          <Link 
-            to={`/read/${book.id}`} 
-            onClick={() => incrementBookReads(book.id)}
-            className="w-full bg-[#00c2ff] text-black py-3.5 sm:py-4 md:py-5 rounded-2xl font-black text-center text-sm sm:text-base md:text-lg flex items-center justify-center gap-2.5 sm:gap-3 uppercase hover:bg-[#38d4ff] hover:scale-[1.01] active:scale-[0.99] transition-all shadow-[0_0_25px_rgba(0,194,255,0.3)]"
-          >
-            <BookOpen size={20} className="sm:w-5 sm:h-5" />
-            <span>Read Book</span>
-          </Link>
+          {/* Action CTAs */}
+          <div className="space-y-3">
+            <Link 
+              to={`/read/${book.id}`} 
+              onClick={() => incrementBookReads(book.id)}
+              className="w-full bg-[#00c2ff] text-black py-3.5 sm:py-4 md:py-5 rounded-2xl font-black text-center text-sm sm:text-base md:text-lg flex items-center justify-center gap-2.5 sm:gap-3 uppercase hover:bg-[#38d4ff] hover:scale-[1.01] active:scale-[0.99] transition-all shadow-[0_0_25px_rgba(0,194,255,0.3)]"
+            >
+              <BookOpen size={20} className="sm:w-5 sm:h-5" />
+              <span>Read Book (+0.25 Marq/Page)</span>
+            </Link>
+
+            <button
+              onClick={() => setIsBoostModalOpen(true)}
+              className="w-full bg-gradient-to-r from-amber-500/15 to-orange-500/15 hover:from-amber-500/25 hover:to-orange-500/25 border border-amber-500/40 text-amber-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(245,158,11,0.15)]"
+            >
+              <MarqsLogo size={14} glow />
+              <span>Push Momentum: Buy Back Boost</span>
+            </button>
+          </div>
         </div>
       </main>
 
@@ -260,8 +296,9 @@ const SocialPage: React.FC = () => {
           {/* Comment Form */}
           <div className="space-y-6">
             <div className={`p-6 bg-[#0a0a0a] rounded-2xl border border-white/5 ${hasCommented ? 'opacity-50' : ''}`}>
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-[#00c2ff] mb-4">
-                {hasCommented ? 'ENTRY_LOCKED' : 'Initialize Entry'}
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-amber-300 mb-4 flex items-center gap-2">
+                <MarqsLogo size={12} />
+                <span>{hasCommented ? 'ENTRY_LOCKED' : "Initialize Entry (+5 Marq's)"}</span>
               </h3>
               {hasCommented ? (
                 <div className="text-center py-4">
@@ -300,9 +337,9 @@ const SocialPage: React.FC = () => {
                   <button 
                     type="submit" 
                     disabled={isSubmittingComment}
-                    className="w-full bg-white text-black py-3 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-[#00c2ff] transition-all disabled:opacity-50"
+                    className="w-full bg-[#00c2ff] text-black py-3 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-[#38d4ff] transition-all disabled:opacity-50"
                   >
-                    {isSubmittingComment ? 'Syncing...' : <><Send size={12} /> Deploy Entry</>}
+                    {isSubmittingComment ? 'Transmitting...' : <><Send size={12} /> Transmit (+5 Marqs)</>}
                   </button>
                 </form>
               )}
@@ -313,7 +350,7 @@ const SocialPage: React.FC = () => {
           <div className="space-y-6">
             {comments.length === 0 ? (
               <div className="py-12 text-center border border-dashed border-white/5 rounded-3xl">
-                <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">No discourse detected in this sector.</p>
+                <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">No discourse detected in this sector. Be the first to comment!</p>
               </div>
             ) : (
               comments.map((comment) => (
@@ -340,6 +377,14 @@ const SocialPage: React.FC = () => {
       </section>
 
       <Footer />
+
+      {/* Boost Modal Integration */}
+      <MarqsEconomyModal 
+        isOpen={isBoostModalOpen} 
+        onClose={() => setIsBoostModalOpen(false)} 
+        initialTab="boost" 
+        preselectedBookId={book.id} 
+      />
     </div>
   );
 };

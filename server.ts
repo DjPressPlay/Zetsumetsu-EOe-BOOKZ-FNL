@@ -33,6 +33,13 @@ async function startServer() {
   };
 
   // API Routes
+  app.get("/api/client-ip", (req, res) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = typeof forwarded === 'string' 
+      ? forwarded.split(',')[0].trim() 
+      : (req.socket.remoteAddress || '127.0.0.1');
+    res.json({ ip });
+  });
   app.post("/api/create-checkout-session", bridge(createCheckoutHandler));
   app.post("/api/webhook", bridge(webhookHandler));
 
