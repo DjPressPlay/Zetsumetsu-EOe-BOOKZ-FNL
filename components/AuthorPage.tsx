@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { BookMetadata } from '../types';
 import { getAllMetadata } from '../services/db';
+import { normalizeSectorName } from '../services/categories';
 import Footer from './Footer';
 import { ArrowLeft, Library, Globe, Database } from 'lucide-react';
 
@@ -90,7 +91,7 @@ const AuthorPage: React.FC = () => {
                   <div className="px-1">
                     <h4 className="text-[11px] font-black uppercase tracking-tight text-white/80 truncate mb-1 group-hover:text-[#00c2ff] transition-colors">{book.title}</h4>
                     <div className="flex justify-between items-center">
-                      <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">{book.genre}</span>
+                      <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">{normalizeSectorName(book.genre)}</span>
                       <div className="w-1 h-1 rounded-full bg-[#00c2ff] animate-pulse" />
                     </div>
                   </div>

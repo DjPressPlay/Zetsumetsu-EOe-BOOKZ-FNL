@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { BookMetadata, Comment } from '../types';
 import { getBookMetadata, incrementBookReads, incrementBookUpvotes, getComments, addComment, checkUserUpvote, checkUserCommented } from '../services/db';
 import { getDeviceId } from '../services/deviceId';
+import { normalizeSectorName } from '../services/categories';
 import Footer from './Footer';
 import { 
   Eye, 
@@ -162,7 +163,7 @@ const SocialPage: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none z-20" />
             <div className="absolute top-3 left-3 z-30">
               <span className="px-2.5 py-1 bg-black/70 backdrop-blur-md text-[#00c2ff] border border-[#00c2ff]/30 rounded-lg text-[8px] font-black uppercase tracking-widest">
-                {book.genre || 'ARCHIVE'}
+                {normalizeSectorName(book.genre)}
               </span>
             </div>
           </div>
@@ -204,7 +205,7 @@ const SocialPage: React.FC = () => {
         <div className="flex flex-col justify-center space-y-4 sm:space-y-6 w-full">
           <div>
             <span className="px-2.5 py-1 bg-[#00c2ff]/10 text-[#00c2ff] border border-[#00c2ff]/20 rounded-md text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-2 sm:mb-3 inline-block">
-              {book.genre || 'Standard Archival Format'}
+              {normalizeSectorName(book.genre)}
             </span>
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black uppercase italic tracking-tight leading-tight text-white mb-2">
               {book.title}

@@ -71,12 +71,12 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, deviceId }
 
                     <h3 className="text-xl font-black text-white uppercase italic mb-4">PREMIUM ARCHIVIST</h3>
                     <p className="text-xs text-slate-400 mb-8 leading-relaxed">
-                      Unlock everything. A permanent upgrade for your account.
+                      Expanded archival capacity. Unlock up to 20 book slots for your account.
                     </p>
 
                     <ul className="space-y-4 mb-10 flex-1">
                       {[
-                        "UPLOAD UNLIMITED BOOKS",
+                        "UPLOAD UP TO 20 BOOKS (4X CAPACITY)",
                         "FEATURED IN THE FEED",
                         "PRIORITY SUPPORT",
                         "VERIFIED ARCHIVIST BADGE",

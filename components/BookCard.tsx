@@ -3,12 +3,15 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { BookMetadata } from '../types';
 import { ChevronUp } from 'lucide-react';
+import { normalizeSectorName } from '../services/categories';
 
 interface BookCardProps {
   book: BookMetadata;
 }
 
 const BookCard: React.FC<BookCardProps> = ({ book }) => {
+  const displayGenre = normalizeSectorName(book.genre);
+
   return (
     <div className="group relative block w-full">
       <div className="bg-[#0d1117] border border-white/5 rounded-xl p-3 flex gap-4 hover:border-[#00c2ff]/30 transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,194,255,0.1)] h-32 items-center">
@@ -29,8 +32,8 @@ const BookCard: React.FC<BookCardProps> = ({ book }) => {
         </Link>
         
         <div className="flex-1 flex flex-col justify-center min-w-0">
-          <span className="text-[8px] font-black uppercase tracking-[0.3em] text-[#00c2ff] mb-1 block opacity-70">
-            Featured
+          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#00c2ff] mb-1 block opacity-90 truncate">
+            {displayGenre}
           </span>
           <Link to={`/book/${book.id}`}>
             <h3 className="font-black text-white text-xs md:text-sm uppercase tracking-tight line-clamp-1 group-hover:text-[#00c2ff] transition-colors leading-tight">

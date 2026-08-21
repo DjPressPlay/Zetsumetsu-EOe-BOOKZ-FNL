@@ -5,9 +5,11 @@ import { getDeviceId, getDeviceIdHistory } from './deviceId';
 
 const BUCKET_NAME = 'bookz';
 export const FREE_UPLOAD_LIMIT = 5;
+export const PREMIUM_UPLOAD_LIMIT = 20;
 
 export interface UserQuota {
   uploadCount: number;
+  maxUploads: number;
   maxFreeUploads: number;
   remainingUploads: number;
   isPremium: boolean;
@@ -401,14 +403,43 @@ export const getUserUploadCount = async (userIds: string | string[]): Promise<nu
 export const getUserQuota = async (): Promise<UserQuota> => {
   const deviceId = getDeviceId();
   const history = getDeviceIdHistory();
+  
+  // Try Supabase RPC function first if available
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.rpc('get_user_upload_quota', {
+        p_device_id: deviceId,
+        p_history_ids: history
+      });
+      if (!error && data && data.length > 0) {
+        const row = data[0];
+        const maxSlots = Number(row.max_slots) || (row.is_premium ? PREMIUM_UPLOAD_LIMIT : FREE_UPLOAD_LIMIT);
+        const uploadCount = Number(row.upload_count) || 0;
+        const remainingUploads = Math.max(0, maxSlots - uploadCount);
+        return {
+          uploadCount,
+          maxUploads: maxSlots,
+          maxFreeUploads: FREE_UPLOAD_LIMIT,
+          remainingUploads,
+          isPremium: Boolean(row.is_premium),
+          credits: Number(row.credits) || 10
+        };
+      }
+    } catch {
+      // Fall through to client calculation
+    }
+  }
+
   const creditsData = await getUserCredits(deviceId);
   const uploadCount = await getUserUploadCount(history);
-  const maxFreeUploads = FREE_UPLOAD_LIMIT;
-  const remainingUploads = creditsData.isPremium ? Infinity : Math.max(0, maxFreeUploads - uploadCount);
+  const maxUploads = creditsData.isPremium ? PREMIUM_UPLOAD_LIMIT : FREE_UPLOAD_LIMIT;
+  const remainingUploads = Math.max(0, maxUploads - uploadCount);
 
   return {
     uploadCount,
-    maxFreeUploads,
+    maxUploads,
+    maxFreeUploads: FREE_UPLOAD_LIMIT,
     remainingUploads,
     isPremium: creditsData.isPremium,
     credits: creditsData.credits

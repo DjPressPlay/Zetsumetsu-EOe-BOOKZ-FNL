@@ -13,22 +13,25 @@ import Footer from './components/Footer';
 import Walkthrough from './components/Walkthrough';
 import { getAllMetadata, trackVisit, getNetworkStats, NetworkStats, getUserQuota, UserQuota } from './services/db';
 import { getSupabase } from './services/supabase';
+import { normalizeSectorName } from './services/categories';
 import { AlertCircle, Copy, Check, Search, Activity, Zap } from 'lucide-react';
 
 const CATEGORIES = [
-  "GUIDES & PROTOCOLS", "NEURAL FICTION", "ACADEMIC NODES", "SYSTEM SCHEMATICS",
-  "HISTORICAL TRACES", "VISUAL ARTIFACTS", "PHILOSOPHICAL CODES", "RAW DATA STREAMS"
+  "GUIDES & HOW-TOS",
+  "FICTION & STORIES",
+  "RESEARCH & PAPERS",
+  "REFERENCE & NONFICTION",
+  "ART & ILLUSTRATION",
+  "OTHER DOCUMENTS"
 ];
 
 const SECTOR_HIERARCHY: Record<string, string[]> = {
-  "GUIDES & PROTOCOLS": ["MANUALS", "TECHNICAL DOCS", "HOW-TO", "TUTORIALS"],
-  "NEURAL FICTION": ["NOVELS", "CREATIVE WRITING", "SCRIPTS", "POETRY"],
-  "ACADEMIC NODES": ["RESEARCH PAPERS", "SCIENCE", "THEORY", "JOURNALS"],
-  "SYSTEM SCHEMATICS": ["BLUEPRINTS", "ENGINEERING", "TECH SPECS", "DIAGRAMS"],
-  "HISTORICAL TRACES": ["HISTORY", "RECORDS", "MEMOIRS", "ARCHIVES"],
-  "VISUAL ARTIFACTS": ["ART", "PORTFOLIOS", "DESIGN", "PHOTOGRAPHY"],
-  "PHILOSOPHICAL CODES": ["PHILOSOPHY", "ESSAYS", "MANIFESTOS", "ETHICS"],
-  "RAW DATA STREAMS": ["LOGS", "DATABASES", "UNCATEGORIZED", "METADATA"]
+  "GUIDES & HOW-TOS": ["MANUALS", "TUTORIALS", "TECHNICAL DOCS", "HOW-TO GUIDES"],
+  "FICTION & STORIES": ["NOVELS", "CREATIVE WRITING", "SHORT STORIES", "POETRY"],
+  "RESEARCH & PAPERS": ["ACADEMIC PAPERS", "SCIENTIFIC STUDIES", "THEORY", "JOURNALS"],
+  "REFERENCE & NONFICTION": ["HISTORICAL RECORDS", "ESSAYS & MANIFESTOS", "SYSTEM SPECS", "MEMOIRS"],
+  "ART & ILLUSTRATION": ["DIGITAL ART", "PORTFOLIOS", "DESIGN", "PHOTOGRAPHY"],
+  "OTHER DOCUMENTS": ["LOGS & DATA", "UNCATEGORIZED", "GENERAL TEXTS", "MISCELLANEOUS"]
 };
 
 const SetupGuide: React.FC<{ error?: string }> = ({ error }) => {
@@ -138,7 +141,9 @@ const SystemMetrics: React.FC<{ stats: NetworkStats | null }> = ({ stats }) => {
   const items = [
     ...(quota ? [{
       label: 'YOUR_CAPACITY',
-      value: quota.isPremium ? 'UNLIMITED' : `${quota.remainingUploads}/${quota.maxFreeUploads} LEFT`,
+      value: quota.isPremium 
+        ? `${quota.remainingUploads}/${quota.maxUploads || 20} (PRO)` 
+        : `${quota.remainingUploads}/${quota.maxFreeUploads} LEFT`,
       highlight: true
     }] : []),
     { label: 'NETWORK_VISITS', value: stats.visits.toString().padStart(6, '0') },
@@ -192,35 +197,37 @@ const HomePage: React.FC<{ books: BookMetadata[], error: string | null, searchQu
       return SECTOR_HIERARCHY[activeParentSector];
     }
 
-    // Otherwise, use the "Top 7" trending logic
-    const top7Books = books.slice(0, 7);
-    const topGenres = Array.from(new Set(top7Books.map(b => b.genre.toUpperCase())));
+    // Otherwise, use normalized genre categories with fallback defaults
+    const topGenres = Array.from(new Set(books.map(b => normalizeSectorName(b.genre).toUpperCase())));
     
-    let finalCategories = [...topGenres];
+    let finalCategories = CATEGORIES.filter(cat => topGenres.includes(cat));
     
-    if (finalCategories.length < 7) {
-      const remainingSlots = 7 - finalCategories.length;
-      const availableDefaults = CATEGORIES.filter(cat => !finalCategories.includes(cat));
-      const shuffled = [...availableDefaults].sort(() => 0.5 - Math.random());
-      finalCategories = [...finalCategories, ...shuffled.slice(0, remainingSlots)];
-    }
+    // Fill with remaining categories from the 6 standard sectors
+    CATEGORIES.forEach(cat => {
+      if (!finalCategories.includes(cat)) {
+        finalCategories.push(cat);
+      }
+    });
     
-    return finalCategories.slice(0, 8);
+    return finalCategories;
   }, [books, activeParentSector]);
 
   const filteredBooks = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return books;
     
-    // Multi-term search logic (Intersection)
+    // Multi-term search logic (Intersection) with genre normalization
     const terms = q.split(/\s+/);
-    return books.filter(b => 
-      terms.every(term => 
+    return books.filter(b => {
+      const normalizedGenre = normalizeSectorName(b.genre).toLowerCase();
+      const rawGenre = (b.genre || '').toLowerCase();
+      return terms.every(term => 
         b.title.toLowerCase().includes(term) || 
         b.author.toLowerCase().includes(term) || 
-        b.genre.toLowerCase().includes(term)
-      )
-    );
+        rawGenre.includes(term) ||
+        normalizedGenre.includes(term)
+      );
+    });
   }, [books, searchQuery]);
 
   const handleSectorClick = (cat: string) => {
@@ -341,8 +348,8 @@ const HomePage: React.FC<{ books: BookMetadata[], error: string | null, searchQu
                     <div className="px-1">
                       <h4 className="text-[11px] font-black uppercase tracking-tight text-white/80 truncate mb-1 group-hover:text-[#00c2ff] transition-colors">{book.title}</h4>
                       <div className="flex justify-between items-center">
-                        <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">v.ARCHIVE</span>
-                        <div className="w-1 h-1 rounded-full bg-[#00c2ff] animate-pulse" />
+                        <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest truncate max-w-[85%]">{normalizeSectorName(book.genre)}</span>
+                        <div className="w-1 h-1 rounded-full bg-[#00c2ff] animate-pulse shrink-0" />
                       </div>
                     </div>
                   </Link>

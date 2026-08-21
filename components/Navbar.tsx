@@ -52,8 +52,12 @@ interface NavbarProps {
 }
 
 const CATEGORIES = [
-  "GUIDES & PROTOCOLS", "NEURAL FICTION", "ACADEMIC NODES", "SYSTEM SCHEMATICS",
-  "HISTORICAL TRACES", "VISUAL ARTIFACTS", "PHILOSOPHICAL CODES", "RAW DATA STREAMS"
+  "GUIDES & HOW-TOS",
+  "FICTION & STORIES",
+  "RESEARCH & PAPERS",
+  "REFERENCE & NONFICTION",
+  "ART & ILLUSTRATION",
+  "OTHER DOCUMENTS"
 ];
 
 const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => {
@@ -78,6 +82,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const [isPremium, setIsPremium] = useState(false);
   const [quota, setQuota] = useState<UserQuota>({
     uploadCount: 0,
+    maxUploads: FREE_UPLOAD_LIMIT,
     maxFreeUploads: FREE_UPLOAD_LIMIT,
     remainingUploads: FREE_UPLOAD_LIMIT,
     isPremium: false,
@@ -159,10 +164,14 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
     const currentQuota = await getUserQuota();
     setQuota(currentQuota);
 
-    if (!currentQuota.isPremium && currentQuota.remainingUploads <= 0) {
+    if (currentQuota.remainingUploads <= 0) {
       setUploadStatus('error');
-      setUploadError("Your archival sector is full (0/5 free slots remaining). Upgrade to PREMIUM for unlimited uploads.");
-      showToast("Archival Quota Reached", "Free archivists receive 5 books. Upgrade to Premium for unlimited storage.", "warning");
+      const maxSlots = currentQuota.maxUploads || (currentQuota.isPremium ? 20 : 5);
+      const msg = currentQuota.isPremium
+        ? `Your archival sector is full (${currentQuota.uploadCount}/${maxSlots} books stored). Maximum quota reached.`
+        : `Your archival sector is full (${currentQuota.uploadCount}/${maxSlots} free slots remaining). Upgrade to PREMIUM for 20 uploads.`;
+      setUploadError(msg);
+      showToast("Archival Quota Reached", msg, "warning");
       return;
     }
 
@@ -216,7 +225,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
         if (newQuota.remainingUploads === 0) {
           showToast(
             "Archive Node Minted!",
-            "You have used all 5 free archival slots. Upgrade to Premium for unlimited uploads.",
+            "You have used all 5 free archival slots. Upgrade to Premium for 20 book uploads.",
             "warning"
           );
         } else {
@@ -227,11 +236,19 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
           );
         }
       } else {
-        showToast(
-          "Archive Node Minted!",
-          "Deployment complete. Premium unlimited storage active.",
-          "success"
-        );
+        if (newQuota.remainingUploads === 0) {
+          showToast(
+            "Archive Node Minted!",
+            "You have reached the maximum 20/20 premium book capacity.",
+            "warning"
+          );
+        } else {
+          showToast(
+            "Archive Node Minted!",
+            `Deployment complete. ${newQuota.remainingUploads} of 20 premium slots remaining.`,
+            "success"
+          );
+        }
       }
       
       // Refresh the page or trigger a global refresh after viewing success
@@ -382,11 +399,11 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                     <button 
                       onClick={() => setIsQuotaPopoverOpen(prev => !prev)}
                       className="flex items-center gap-1.5 px-3 py-1.5 md:py-2 bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 hover:from-amber-500/20 hover:to-indigo-500/20 border border-amber-400/30 rounded-full transition-all group shadow-[0_0_15px_rgba(251,191,36,0.15)]"
-                      title="Archival Status: Premium Unlimited"
+                      title={`Archival Status: Premium Tier (${quota.remainingUploads} of ${quota.maxUploads || 20} slots remaining)`}
                     >
                       <Crown size={13} className="text-amber-400 fill-amber-400 shrink-0" />
                       <span className="text-[9px] md:text-[10px] font-black text-amber-300 tracking-wider">
-                        UNLIMITED
+                        {quota.remainingUploads}/{quota.maxUploads || 20} SLOTS
                       </span>
                       <span className="hidden xl:inline text-[8px] font-bold text-slate-400 uppercase tracking-widest pl-1 border-l border-white/10">
                         PRO
@@ -453,19 +470,30 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                           <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
                             quota.isPremium ? 'bg-amber-400/10 text-amber-300 border border-amber-400/20' : 'bg-white/5 text-slate-400 border border-white/10'
                           }`}>
-                            {quota.isPremium ? '👑 PREMIUM TIER' : 'FREE TIER'}
+                            {quota.isPremium ? '👑 PREMIUM (20 SLOTS)' : 'FREE TIER (5 SLOTS)'}
                           </span>
                         </div>
 
                         <div className="py-3.5 space-y-3">
                           {quota.isPremium ? (
-                            <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/10 to-purple-500/10 border border-amber-500/20">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Crown size={14} className="text-amber-400 fill-amber-400" />
-                                <span className="text-[11px] font-black uppercase tracking-wide text-white">Unlimited Storage</span>
+                            <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/10 to-purple-500/10 border border-amber-500/20 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Crown size={14} className="text-amber-400 fill-amber-400" />
+                                  <span className="text-[11px] font-black uppercase tracking-wide text-white">Premium Tier Active</span>
+                                </div>
+                                <span className="text-[10px] font-mono font-bold text-amber-300">
+                                  {quota.uploadCount}/{quota.maxUploads || 20} USED
+                                </span>
+                              </div>
+                              <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-gradient-to-r from-amber-400 to-purple-500 rounded-full transition-all"
+                                  style={{ width: `${Math.min(100, (quota.uploadCount / (quota.maxUploads || 20)) * 100)}%` }}
+                                />
                               </div>
                               <p className="text-[9px] text-slate-300 font-medium leading-relaxed">
-                                You have unlocked unlimited PDF uploads to the Zetsu network with permanent global hosting.
+                                {quota.remainingUploads} of {quota.maxUploads || 20} book archival slots remaining with permanent hosting.
                               </p>
                             </div>
                           ) : (
@@ -510,7 +538,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                                 {quota.remainingUploads === 0 ? (
                                   <p className="flex items-center gap-1.5">
                                     <AlertTriangle size={14} className="text-red-400 shrink-0" />
-                                    <span>All 5 free slots filled. Upgrade to publish more.</span>
+                                    <span>All 5 free slots filled. Upgrade to publish up to 20 books.</span>
                                   </p>
                                 ) : quota.remainingUploads === 1 ? (
                                   <p className="flex items-center gap-1.5">
@@ -538,7 +566,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                               className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]"
                             >
                               <Crown size={12} className="fill-white" />
-                              Upgrade to Unlimited ($19.99)
+                              Upgrade to 20 Books ($19.99)
                             </button>
                           )}
                           
@@ -709,13 +737,13 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                           : 'bg-[#00c2ff]/10 text-[#00c2ff] border border-[#00c2ff]/30'
                       }`}>
                         {quota.isPremium 
-                          ? '👑 UNLIMITED STORAGE' 
+                          ? `${quota.remainingUploads} OF ${quota.maxUploads || 20} SLOTS REMAINING (PRO)` 
                           : `${quota.remainingUploads} OF ${quota.maxFreeUploads} SLOTS REMAINING`}
                       </span>
                     </div>
 
-                    {/* 5-slot visual progress nodes */}
-                    {!quota.isPremium && (
+                    {/* Visual progress nodes */}
+                    {!quota.isPremium ? (
                       <div className="space-y-1.5">
                         <div className="grid grid-cols-5 gap-1.5">
                           {[0, 1, 2, 3, 4].map(idx => {
@@ -744,6 +772,19 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                           </span>
                         </div>
                       </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-amber-400 to-purple-500 rounded-full transition-all"
+                            style={{ width: `${Math.min(100, (quota.uploadCount / (quota.maxUploads || 20)) * 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-widest text-slate-400 pt-0.5">
+                          <span>Premium Tier ({quota.maxUploads || 20} Books Max)</span>
+                          <span className="text-amber-300 font-mono font-bold">{quota.uploadCount}/{quota.maxUploads || 20} Used</span>
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -768,11 +809,11 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         <h3 className="text-xl font-black text-white uppercase italic">Archive Synced</h3>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest max-w-[240px] mx-auto">
                           {quota.isPremium 
-                            ? "Deployment complete. Premium unlimited storage active."
+                            ? `Deployment complete. ${quota.remainingUploads} of ${quota.maxUploads || 20} premium slots remaining.`
                             : `Deployment complete. ${quota.remainingUploads} of ${quota.maxFreeUploads} free upload slots remaining.`}
                         </p>
                       </motion.div>
-                    ) : (!quota.isPremium && quota.remainingUploads <= 0 && !pdfInfo) ? (
+                    ) : (quota.remainingUploads <= 0 && !pdfInfo) ? (
                       <motion.div 
                         key="limit-reached"
                         initial={{ opacity: 0, y: 10 }}
@@ -783,24 +824,30 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                           <ShieldAlert size={28} />
                         </div>
                         <div>
-                          <h4 className="font-black text-white uppercase tracking-wider text-sm mb-1.5">Free Archival Limit Reached</h4>
+                          <h4 className="font-black text-white uppercase tracking-wider text-sm mb-1.5">
+                            {quota.isPremium ? 'Premium Archival Limit Reached' : 'Free Archival Limit Reached'}
+                          </h4>
                           <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-sm mx-auto">
-                            You have uploaded the maximum of 5 free books allowed on this node. Upgrade to a Premium Archivist to publish unlimited books, unlock priority indexing, and obtain a verified badge.
+                            {quota.isPremium 
+                              ? `You have reached the maximum allowance of ${quota.maxUploads || 20} books for this node.`
+                              : 'You have uploaded the maximum of 5 free books allowed on this node. Upgrade to Premium to unlock 20 book slots, priority indexing, and obtain a verified badge.'}
                           </p>
                         </div>
-                        <div className="pt-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsRequestOpen(false);
-                              setIsPricingOpen(true);
-                            }}
-                            className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all flex items-center justify-center gap-2"
-                          >
-                            <Crown size={14} className="fill-white" />
-                            Unlock Unlimited Uploads ($19.99)
-                          </button>
-                        </div>
+                        {!quota.isPremium && (
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsRequestOpen(false);
+                                setIsPricingOpen(true);
+                              }}
+                              className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all flex items-center justify-center gap-2"
+                            >
+                              <Crown size={14} className="fill-white" />
+                              Upgrade to 20 Books ($19.99)
+                            </button>
+                          </div>
+                        )}
                       </motion.div>
                     ) : uploadStatus === 'uploading' ? (
                       <motion.div 
