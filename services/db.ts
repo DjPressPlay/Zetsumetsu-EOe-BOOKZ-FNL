@@ -58,7 +58,27 @@ export interface UserQuota {
   remainingUploads: number;
   isPremium: boolean;
   credits: number;
+  daysUntilReset: number;
+  resetDate: string;
 }
+
+export const getStartOfCurrentMonth = (): Date => {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+};
+
+export const getDaysUntilNextMonth = (): number => {
+  const now = new Date();
+  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
+  const diffMs = nextMonth.getTime() - now.getTime();
+  return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+};
+
+export const getNextMonthResetDate = (): string => {
+  const now = new Date();
+  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return nextMonth.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
 
 /**
  * Internal helper to ensure client exists before operations
@@ -508,16 +528,26 @@ export const updateUserPremium = async (userId: string, isPremium: boolean): Pro
   if (error) console.error('Failed to update premium status:', error);
 };
 
-export const getUserUploadCount = async (userIds: string | string[]): Promise<number> => {
+export const getUserUploadCount = async (
+  userIds: string | string[],
+  currentMonthOnly: boolean = true
+): Promise<number> => {
   const supabase = getSupabase();
   if (!supabase) return 0;
 
   const ids = Array.isArray(userIds) ? userIds : [userIds];
 
-  const { count, error } = await supabase
+  let query = supabase
     .from('bookz')
     .select('*', { count: 'exact', head: true })
     .in('user_id', ids);
+
+  if (currentMonthOnly) {
+    const startOfMonth = getStartOfCurrentMonth().toISOString();
+    query = query.gte('upload_date', startOfMonth);
+  }
+
+  const { count, error } = await query;
 
   if (error) {
     console.error('Failed to count uploads:', error);
@@ -529,36 +559,11 @@ export const getUserUploadCount = async (userIds: string | string[]): Promise<nu
 export const getUserQuota = async (): Promise<UserQuota> => {
   const deviceId = getDeviceId();
   const history = getDeviceIdHistory();
+  const daysUntilReset = getDaysUntilNextMonth();
+  const resetDate = getNextMonthResetDate();
   
-  // Try Supabase RPC function first if available
-  const supabase = getSupabase();
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.rpc('get_user_upload_quota', {
-        p_device_id: deviceId,
-        p_history_ids: history
-      });
-      if (!error && data && data.length > 0) {
-        const row = data[0];
-        const maxSlots = Number(row.max_slots) || (row.is_premium ? PREMIUM_UPLOAD_LIMIT : FREE_UPLOAD_LIMIT);
-        const uploadCount = Number(row.upload_count) || 0;
-        const remainingUploads = Math.max(0, maxSlots - uploadCount);
-        return {
-          uploadCount,
-          maxUploads: maxSlots,
-          maxFreeUploads: FREE_UPLOAD_LIMIT,
-          remainingUploads,
-          isPremium: Boolean(row.is_premium),
-          credits: Number(row.credits) || 10
-        };
-      }
-    } catch {
-      // Fall through to client calculation
-    }
-  }
-
   const creditsData = await getUserCredits(deviceId);
-  const uploadCount = await getUserUploadCount(history);
+  const uploadCount = await getUserUploadCount(history, true);
   const maxUploads = creditsData.isPremium ? PREMIUM_UPLOAD_LIMIT : FREE_UPLOAD_LIMIT;
   const remainingUploads = Math.max(0, maxUploads - uploadCount);
 
@@ -568,7 +573,9 @@ export const getUserQuota = async (): Promise<UserQuota> => {
     maxFreeUploads: FREE_UPLOAD_LIMIT,
     remainingUploads,
     isPremium: creditsData.isPremium,
-    credits: creditsData.credits
+    credits: creditsData.credits,
+    daysUntilReset,
+    resetDate
   };
 };
 

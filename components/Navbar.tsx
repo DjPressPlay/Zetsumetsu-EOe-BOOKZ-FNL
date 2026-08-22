@@ -617,17 +617,21 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                           <div className="flex items-center justify-between pb-3 border-b border-white/10">
                             <div className="flex items-center gap-2">
                               <HardDrive size={14} className="text-[#00c2ff]" />
-                              <span className="text-[10px] font-black uppercase tracking-widest text-white">Archival Storage</span>
+                              <span className="text-[11px] font-black uppercase tracking-wider text-white">Archival Storage</span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
-                                quota.isPremium ? 'bg-amber-400/10 text-amber-300 border border-amber-400/20' : 'bg-white/5 text-slate-400 border border-white/10'
-                              }`}>
-                                {quota.isPremium ? '👑 PREMIUM (20 SLOTS)' : 'FREE TIER (5 SLOTS)'}
-                              </span>
+                            <div className="flex items-center gap-2">
+                              {quota.isPremium ? (
+                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/20">
+                                  👑 PREMIUM
+                                </span>
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-[#00c2ff]/10 border border-[#00c2ff]/30 shadow-[0_0_12px_rgba(0,194,255,0.25)] flex items-center justify-center text-[#00c2ff]">
+                                  <BookOpen size={15} className="stroke-[2.2]" />
+                                </div>
+                              )}
                               <button
                                 onClick={() => setIsQuotaPopoverOpen(false)}
-                                className="p-1 hover:bg-white/10 text-slate-400 hover:text-white rounded-full transition-colors sm:hidden"
+                                className="p-1 hover:bg-white/10 text-slate-400 hover:text-white rounded-full transition-colors"
                                 aria-label="Close popover"
                               >
                                 <X size={14} />
@@ -635,13 +639,24 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                             </div>
                           </div>
 
+                          {!quota.isPremium && (
+                            <div className="py-2.5 px-1 border-b border-white/10 flex items-center justify-between">
+                              <span className="text-[11px] font-black uppercase tracking-wider text-white font-mono">
+                                FREE TIER (5 / MO)
+                              </span>
+                              <span className="text-[9.5px] font-mono font-bold text-[#00c2ff]">
+                                {quota.remainingUploads} SLOTS LEFT
+                              </span>
+                            </div>
+                          )}
+
                           <div className="py-3.5 space-y-3">
                             {quota.isPremium ? (
                               <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/10 to-purple-500/10 border border-amber-500/20 space-y-2">
                                 <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1.5">
                                     <Crown size={14} className="text-amber-400 fill-amber-400" />
-                                    <span className="text-[11px] font-black uppercase tracking-wide text-white">Premium Tier Active</span>
+                                    <span className="text-[11px] font-black uppercase tracking-wide text-white">Active</span>
                                   </div>
                                   <span className="text-[10px] font-mono font-bold text-amber-300">
                                     {quota.uploadCount}/{quota.maxUploads || 20} USED
@@ -653,67 +668,54 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                                     style={{ width: `${Math.min(100, (quota.uploadCount / (quota.maxUploads || 20)) * 100)}%` }}
                                   />
                                 </div>
-                                <p className="text-[9px] text-slate-300 font-medium leading-relaxed">
-                                  {quota.remainingUploads} of {quota.maxUploads || 20} book archival slots remaining with permanent hosting.
-                                </p>
+                                <div className="flex justify-between items-center text-[9px] text-slate-300 font-medium font-mono">
+                                  <span>{quota.remainingUploads} slots remaining</span>
+                                  <span className="text-amber-400/80">Resets {quota.resetDate}</span>
+                                </div>
                               </div>
                             ) : (
-                              <>
-                                {/* Slot Meter Bar */}
-                                <div className="space-y-1.5">
-                                  <div className="flex justify-between items-center text-[9px] font-mono font-bold uppercase">
-                                    <span className="text-slate-400">Slots Used</span>
-                                    <span className="text-white">{quota.uploadCount} of {quota.maxFreeUploads} Books</span>
+                              <div className="space-y-3">
+                                {/* Clean 5-segment slot tracker */}
+                                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2.5">
+                                  <div className="flex justify-between items-center text-[10px] font-mono font-bold">
+                                    <span className="text-slate-300">
+                                      {quota.uploadCount} of {quota.maxFreeUploads} Slots Used
+                                    </span>
+                                    <span className="text-[#00c2ff]">
+                                      {quota.remainingUploads} Available
+                                    </span>
                                   </div>
-                                  
-                                  {/* Visual 5-block row */}
-                                  <div className="grid grid-cols-5 gap-1.5 py-1">
+
+                                  {/* 5 clean visual segment bars */}
+                                  <div className="grid grid-cols-5 gap-1.5">
                                     {[0, 1, 2, 3, 4].map(idx => {
                                       const isUsed = idx < quota.uploadCount;
                                       return (
                                         <div 
                                           key={idx}
-                                          className={`h-7 rounded-lg border flex flex-col items-center justify-center transition-all ${
+                                          className={`h-2 rounded-full transition-all ${
                                             isUsed 
-                                              ? 'bg-[#00c2ff]/15 border-[#00c2ff]/50 text-[#00c2ff]' 
-                                              : 'bg-white/5 border-dashed border-white/15 text-slate-600'
+                                              ? 'bg-[#00c2ff] shadow-[0_0_8px_rgba(0,194,255,0.6)]' 
+                                              : 'bg-white/10'
                                           }`}
-                                        >
-                                          <span className="text-[8px] font-mono font-black">{idx + 1}</span>
-                                          <span className="text-[6px] uppercase font-bold tracking-tighter">
-                                            {isUsed ? 'USED' : 'FREE'}
-                                          </span>
-                                        </div>
+                                        />
                                       );
                                     })}
                                   </div>
+
+                                  <div className="flex justify-between items-center text-[8.5px] font-mono text-slate-400 pt-0.5">
+                                    <span>MONTHLY ALLOCATION</span>
+                                    <span className="text-slate-300">RESETS {quota.resetDate} ({quota.daysUntilReset || 1}D)</span>
+                                  </div>
                                 </div>
 
-                                <div className={`p-2.5 rounded-xl border text-[9px] leading-relaxed font-bold ${
-                                  quota.remainingUploads === 0
-                                    ? 'bg-red-500/10 border-red-500/30 text-red-200'
-                                    : quota.remainingUploads === 1
-                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-                                    : 'bg-[#00c2ff]/10 border-[#00c2ff]/20 text-slate-300'
-                                }`}>
-                                  {quota.remainingUploads === 0 ? (
-                                    <p className="flex items-center gap-1.5">
-                                      <AlertTriangle size={14} className="text-red-400 shrink-0" />
-                                      <span>All 5 free slots filled. Upgrade to publish up to 20 books.</span>
-                                    </p>
-                                  ) : quota.remainingUploads === 1 ? (
-                                    <p className="flex items-center gap-1.5">
-                                      <AlertTriangle size={14} className="text-amber-400 shrink-0" />
-                                      <span>1 upload slot remaining on your free tier.</span>
-                                    </p>
-                                  ) : (
-                                    <p className="flex items-center gap-1.5">
-                                      <CheckCircle2 size={14} className="text-[#00c2ff] shrink-0" />
-                                      <span>You have {quota.remainingUploads} free uploads left.</span>
-                                    </p>
-                                  )}
-                                </div>
-                              </>
+                                {quota.remainingUploads === 0 && (
+                                  <div className="p-2.5 rounded-xl border bg-red-500/10 border-red-500/30 text-red-200 text-[9.5px] font-medium flex items-center gap-2">
+                                    <AlertTriangle size={14} className="text-red-400 shrink-0" />
+                                    <span>All 5 slots filled. Resets on {quota.resetDate} or upgrade to expand.</span>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
 
@@ -1016,12 +1018,12 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         </div>
                         <div>
                           <h4 className="font-black text-white uppercase tracking-wider text-sm mb-1.5">
-                            {quota.isPremium ? 'Premium Archival Limit Reached' : 'Free Archival Limit Reached'}
+                            {quota.isPremium ? 'Monthly Premium Limit Reached' : 'Monthly Free Upload Limit Reached'}
                           </h4>
                           <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-sm mx-auto">
                             {quota.isPremium 
-                              ? `You have reached the maximum allowance of ${quota.maxUploads || 20} books for this node.`
-                              : 'You have uploaded the maximum of 5 free books allowed on this node. Upgrade to Premium to unlock 20 book slots, priority indexing, and obtain a verified badge.'}
+                              ? `You have reached your allowance of ${quota.maxUploads || 20} books for this month. Slots reset on ${quota.resetDate} (in ${quota.daysUntilReset || 1} days).`
+                              : `You have uploaded your allowance of 5 free books for this month. Your slots will reset on ${quota.resetDate} (${quota.daysUntilReset || 1} days left), or upgrade to Premium for 20 books/mo.`}
                           </p>
                         </div>
                         {!quota.isPremium && (
