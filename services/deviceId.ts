@@ -45,6 +45,15 @@ export const getDeviceId = (): string => {
 };
 
 /**
+ * Explicitly update the canonical device ID (used when pulling an existing account by IP).
+ */
+export const setCanonicalDeviceId = (id: string): void => {
+  if (!isBrowser || !id) return;
+  localStorage.setItem(CANONICAL_KEY, id);
+  localStorage.setItem(LEGACY_KEY, id);
+};
+
+/**
  * Every id this browser or IP has ever used, for tables keyed by text (bookz.user_id).
  */
 export const getDeviceIdHistory = (): string[] => {

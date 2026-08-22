@@ -1,5 +1,5 @@
 import { getSupabase } from './supabase';
-import { getDeviceId, getStoredIp, setStoredIp } from './deviceId';
+import { getDeviceId, getStoredIp, setStoredIp, setCanonicalDeviceId } from './deviceId';
 import { UserProfile, UploadedBookRef, MarqsTransaction, MarqsAction, MARQS_EARNING_RATES, MARQS_PER_USD } from '../types';
 import { recordLedgerAction } from './ledger';
 
@@ -82,13 +82,14 @@ const getDefaultAuthorName = (ip?: string): string => {
 };
 
 /**
- * Retrieve user profile from cache, with background Supabase IP sync
+ * Retrieve user profile from cache, with immediate IP recovery fallback and background Supabase IP sync
  */
 export const getUserProfile = (targetDeviceId?: string): UserProfile => {
+  const currentIp = cachedIp || getStoredIp() || '';
   const deviceId = targetDeviceId || getDeviceId();
   const key = getProfileStorageKey(deviceId);
-  const currentIp = cachedIp || getStoredIp() || '';
 
+  // 1. Try reading from deviceId key
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
@@ -114,6 +115,34 @@ export const getUserProfile = (targetDeviceId?: string): UserProfile => {
     }
   } catch (err) {
     console.error('Error reading UserProfile from cache:', err);
+  }
+
+  // 2. If no profile for deviceId, check if an account for this IP already exists locally
+  if (currentIp && currentIp !== '127.0.0.1') {
+    try {
+      const ipRaw = localStorage.getItem(`${PROFILE_STORAGE_KEY_PREFIX}ip_${currentIp}`);
+      if (ipRaw) {
+        const parsedIp = JSON.parse(ipRaw);
+        if (parsedIp.deviceId) {
+          setCanonicalDeviceId(parsedIp.deviceId);
+        }
+        return {
+          id: parsedIp.id || deviceId,
+          deviceId: parsedIp.deviceId || deviceId,
+          ipAddress: currentIp,
+          authorName: parsedIp.authorName || currentIp,
+          walletPasswordHash: parsedIp.walletPasswordHash,
+          hasPassword: !!parsedIp.walletPasswordHash,
+          marqsBalance: Number(parsedIp.marqsBalance ?? 50),
+          totalEarned: Number(parsedIp.totalEarned ?? 50),
+          totalSpent: Number(parsedIp.totalSpent ?? 0),
+          uploadedBooks: Array.isArray(parsedIp.uploadedBooks) ? parsedIp.uploadedBooks : [],
+          transactions: Array.isArray(parsedIp.transactions) ? parsedIp.transactions : [],
+          createdAt: parsedIp.createdAt || Date.now(),
+          lastActive: Date.now()
+        };
+      }
+    } catch {}
   }
 
   // Check if legacy Marqs profile exists
@@ -161,7 +190,7 @@ export const getUserProfile = (targetDeviceId?: string): UserProfile => {
     localStorage.setItem(key, JSON.stringify(initialProfile));
   } catch {}
 
-  // Sync with Supabase in background to restore previous account state if returning via IP
+  // Sync with Supabase in background to pull existing IP account or enforce single-account-per-IP
   syncProfileWithSupabase(initialProfile).catch(() => {});
 
   return initialProfile;
@@ -183,7 +212,7 @@ export const saveUserProfile = (profile: UserProfile): void => {
   try {
     localStorage.setItem(key, JSON.stringify(profile));
     // Keep secondary IP key updated for instant recovery on deviceId reset
-    if (profile.ipAddress) {
+    if (profile.ipAddress && profile.ipAddress !== '127.0.0.1') {
       localStorage.setItem(`${PROFILE_STORAGE_KEY_PREFIX}ip_${profile.ipAddress}`, JSON.stringify(profile));
     }
     // Also keep legacy key synced for backwards compatibility
@@ -217,8 +246,11 @@ export const saveUserProfile = (profile: UserProfile): void => {
 };
 
 /**
- * Synchronizes user profile with Supabase by Public IP Address (with deviceId fallback).
- * This recovers existing accounts, Marqs balances, and uploaded manuscripts even if browser cache was cleared.
+ * Synchronizes user profile with Supabase by Public IP Address:
+ * 1. Strictly enforces 1 account per IP address.
+ * 2. If multiple accounts exist for this IP, automatically keeps the one with the highest Marqs balance
+ *    and deletes duplicate lower-balance accounts from Supabase.
+ * 3. If a new user/device connects from this IP, immediately pulls and adopts the existing account.
  */
 export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promise<UserProfile> => {
   const profile = localProfile || getUserProfile();
@@ -230,46 +262,39 @@ export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promi
     
     // Check tables in order: bookz_user_profiles first, then user_profiles
     let tableName = 'bookz_user_profiles';
-    let remoteData: any = null;
+    let remoteRecords: any[] = [];
     let fetchError: any = null;
 
-    // 1. Primary lookup by IP Address
+    // 1. Primary lookup of ALL accounts associated with this Public IP Address
     if (ip && ip !== '127.0.0.1') {
       const ipQuery = await supabase
         .from(tableName)
         .select('*')
-        .eq('ip_address', ip)
-        .order('last_active', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq('ip_address', ip);
 
       if (ipQuery.error && ipQuery.error.message?.includes('does not exist')) {
         tableName = 'user_profiles';
         const fallbackIpQuery = await supabase
           .from(tableName)
           .select('*')
-          .eq('ip_address', ip)
-          .order('last_active', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        remoteData = fallbackIpQuery.data;
+          .eq('ip_address', ip);
+        remoteRecords = fallbackIpQuery.data || [];
         fetchError = fallbackIpQuery.error;
       } else {
-        remoteData = ipQuery.data;
+        remoteRecords = ipQuery.data || [];
         fetchError = ipQuery.error;
       }
     }
 
     // 2. Secondary lookup by deviceId if not matched by IP
-    if (!remoteData && profile.deviceId) {
+    if (remoteRecords.length === 0 && profile.deviceId) {
       const deviceQuery = await supabase
         .from(tableName)
         .select('*')
-        .eq('device_id', profile.deviceId)
-        .maybeSingle();
+        .eq('device_id', profile.deviceId);
       
-      if (deviceQuery.data) {
-        remoteData = deviceQuery.data;
+      if (deviceQuery.data && deviceQuery.data.length > 0) {
+        remoteRecords = deviceQuery.data;
       }
     }
 
@@ -277,51 +302,91 @@ export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promi
       console.warn(`Supabase ${tableName} fetch error:`, fetchError);
     }
 
-    if (remoteData) {
-      // Merge remote data with local data (highest balance and combined manuscripts)
+    if (remoteRecords.length > 0) {
+      // Sort accounts by Marqs balance descending, breaking ties with most recent activity
+      const sorted = [...remoteRecords].sort((a: any, b: any) => {
+        const balanceA = Number(a.marqs_balance) || 0;
+        const balanceB = Number(b.marqs_balance) || 0;
+        if (balanceB !== balanceA) return balanceB - balanceA;
+        const timeA = new Date(a.last_active || a.created_at || 0).getTime();
+        const timeB = new Date(b.last_active || b.created_at || 0).getTime();
+        return timeB - timeA;
+      });
+
+      // The account with the highest balance is our single canonical account
+      const keeper = sorted[0];
+      const duplicates = sorted.slice(1);
+
+      // Collect and merge all uploaded books across duplicates so no user work is lost
       const mergedBooksMap = new Map<string, UploadedBookRef>();
-      (profile.uploadedBooks || []).forEach(b => mergedBooksMap.set(b.id, b));
-      if (Array.isArray(remoteData.uploaded_books)) {
-        remoteData.uploaded_books.forEach((b: any) => {
-          if (b && b.id) mergedBooksMap.set(b.id, b);
-        });
+      if (Array.isArray(keeper.uploaded_books)) {
+        keeper.uploaded_books.forEach((b: any) => { if (b && b.id) mergedBooksMap.set(b.id, b); });
+      }
+      (profile.uploadedBooks || []).forEach(b => { if (b && b.id) mergedBooksMap.set(b.id, b); });
+
+      duplicates.forEach((dup: any) => {
+        if (Array.isArray(dup.uploaded_books)) {
+          dup.uploaded_books.forEach((b: any) => { if (b && b.id) mergedBooksMap.set(b.id, b); });
+        }
+      });
+
+      // Auto-delete duplicate accounts with lower Marqs balance from Supabase
+      if (duplicates.length > 0) {
+        const duplicateIds = duplicates.map((d: any) => d.id).filter(Boolean);
+        if (duplicateIds.length > 0) {
+          console.info(`[Zetsu IP Enforcement] Deleting ${duplicateIds.length} duplicate lower-balance account(s) for IP ${ip}:`, duplicateIds);
+          await supabase.from(tableName).delete().in('id', duplicateIds);
+          try {
+            await supabase.from('user_profiles').delete().in('id', duplicateIds);
+          } catch {}
+        }
       }
 
-      // Determine author name: if user configured a custom name, keep it; otherwise use remote name or fallback to IP
+      // Adopt keeper's device ID as the canonical device ID for this node
+      const canonicalDeviceId = keeper.device_id || keeper.id || profile.deviceId;
+      setCanonicalDeviceId(canonicalDeviceId);
+
+      // Determine author name
       let resolvedAuthorName = profile.authorName;
       const isCurrentDefault = !resolvedAuthorName || resolvedAuthorName === 'Anonymous Archivist' || resolvedAuthorName === ip;
       if (isCurrentDefault) {
-        if (remoteData.author_name && remoteData.author_name !== 'Anonymous Archivist') {
-          resolvedAuthorName = remoteData.author_name;
+        if (keeper.author_name && keeper.author_name !== 'Anonymous Archivist') {
+          resolvedAuthorName = keeper.author_name;
         } else if (ip && ip !== '127.0.0.1') {
           resolvedAuthorName = ip;
         }
       }
 
       const mergedProfile: UserProfile = {
-        id: profile.deviceId || remoteData.id || `ip_${ip}`,
-        deviceId: profile.deviceId || remoteData.device_id || `dev_${ip}`,
-        ipAddress: ip || remoteData.ip_address || '',
+        id: keeper.id,
+        deviceId: canonicalDeviceId,
+        ipAddress: ip || keeper.ip_address || '',
         authorName: resolvedAuthorName,
-        walletPasswordHash: profile.walletPasswordHash || remoteData.wallet_password_hash || undefined,
-        hasPassword: !!(profile.walletPasswordHash || remoteData.wallet_password_hash),
-        marqsBalance: Math.max(Number(profile.marqsBalance) || 0, Number(remoteData.marqs_balance) || 0),
-        totalEarned: Math.max(Number(profile.totalEarned) || 0, Number(remoteData.total_earned) || 0),
-        totalSpent: Math.max(Number(profile.totalSpent) || 0, Number(remoteData.total_spent) || 0),
+        walletPasswordHash: keeper.wallet_password_hash || profile.walletPasswordHash || undefined,
+        hasPassword: !!(keeper.wallet_password_hash || profile.walletPasswordHash),
+        marqsBalance: Math.max(Number(profile.marqsBalance) || 0, Number(keeper.marqs_balance) || 0),
+        totalEarned: Math.max(Number(profile.totalEarned) || 0, Number(keeper.total_earned) || 0),
+        totalSpent: Math.max(Number(profile.totalSpent) || 0, Number(keeper.total_spent) || 0),
         uploadedBooks: Array.from(mergedBooksMap.values()),
-        transactions: (profile.transactions && profile.transactions.length > 0) 
-          ? profile.transactions 
-          : (Array.isArray(remoteData.transactions) ? remoteData.transactions : []),
-        createdAt: remoteData.created_at ? new Date(remoteData.created_at).getTime() : profile.createdAt,
+        transactions: (Array.isArray(keeper.transactions) && keeper.transactions.length > 0)
+          ? keeper.transactions
+          : (profile.transactions || []),
+        createdAt: keeper.created_at ? new Date(keeper.created_at).getTime() : profile.createdAt,
         lastActive: Date.now()
       };
 
-      // Save locally
+      // Save pulled/merged profile locally
       const key = getProfileStorageKey(mergedProfile.deviceId);
       localStorage.setItem(key, JSON.stringify(mergedProfile));
-      if (ip) {
+      if (ip && ip !== '127.0.0.1') {
         localStorage.setItem(`${PROFILE_STORAGE_KEY_PREFIX}ip_${ip}`, JSON.stringify(mergedProfile));
       }
+      localStorage.setItem(`zetsu_marqs_${mergedProfile.deviceId}`, JSON.stringify({
+        balance: mergedProfile.marqsBalance,
+        totalEarned: mergedProfile.totalEarned,
+        totalSpent: mergedProfile.totalSpent,
+        transactions: mergedProfile.transactions
+      }));
 
       // Trigger UI updates
       window.dispatchEvent(new CustomEvent('zetsu-profile-updated', { detail: mergedProfile }));
@@ -337,13 +402,12 @@ export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promi
         }
       }));
 
-      // Push merged state back to Supabase
-      const upsertId = remoteData.id || profile.deviceId;
+      // Update keeper in Supabase to sync final state and ensure single-IP binding
       await supabase
         .from(tableName)
         .upsert({
-          id: upsertId,
-          device_id: mergedProfile.deviceId,
+          id: keeper.id,
+          device_id: canonicalDeviceId,
           ip_address: ip,
           author_name: mergedProfile.authorName,
           wallet_password_hash: mergedProfile.walletPasswordHash || null,
@@ -357,7 +421,20 @@ export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promi
 
       return mergedProfile;
     } else {
-      // First visit on this IP: Insert new record into Supabase
+      // First visit on this IP: Ensure no race condition before inserting new record
+      if (ip && ip !== '127.0.0.1') {
+        const doubleCheck = await supabase
+          .from(tableName)
+          .select('id')
+          .eq('ip_address', ip)
+          .limit(1);
+
+        if (doubleCheck.data && doubleCheck.data.length > 0) {
+          // Record was created in another tab/request: pull it immediately
+          return syncProfileWithSupabase(profile);
+        }
+      }
+
       const rowId = profile.deviceId || (ip ? `ip_${ip}` : crypto.randomUUID());
       const tempAuthorName = (profile.authorName && profile.authorName !== 'Anonymous Archivist') 
         ? profile.authorName 
