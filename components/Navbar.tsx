@@ -46,6 +46,7 @@ import {
   UserQuota, 
   FREE_UPLOAD_LIMIT,
   getUserMarqs,
+  getUserProfile,
   spendMarqs,
   awardMarqs,
   recordLedgerAction,
@@ -217,7 +218,12 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
       const info = await processPdfForStore(file);
       setPdfInfo(info);
       const initialTitle = file.name.replace('.pdf', '');
-      setFormData(prev => ({ ...prev, title: initialTitle }));
+      const currentProfile = getUserProfile();
+      setFormData(prev => ({ 
+        ...prev, 
+        title: initialTitle,
+        author: prev.author || currentProfile.authorName || ''
+      }));
       setUploadStatus('idle');
     } catch (err: any) {
       console.error('Failed to process PDF:', err);

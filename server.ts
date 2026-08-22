@@ -1,4 +1,6 @@
 import express from "express";
+import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { handler as createCheckoutHandler } from "./netlify/functions/create-checkout-session";
 import { handler as webhookHandler } from "./netlify/functions/webhook";
@@ -8,13 +10,14 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Middleware to capture raw body for Stripe webhooks
-  app.use(express.raw({ type: 'application/json' }));
+  // JSON parser for standard API endpoints
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
   const bridge = (handler: any) => async (req: express.Request, res: express.Response) => {
     const event = {
       httpMethod: req.method,
-      body: req.body instanceof Buffer ? req.body.toString() : JSON.stringify(req.body),
+      body: req.body instanceof Buffer ? req.body.toString() : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body)),
       headers: req.headers,
       queryStringParameters: req.query,
     };
@@ -68,24 +71,50 @@ async function startServer() {
   );
 
   app.post("/api/create-checkout-session", bridge(createCheckoutHandler));
-  app.post("/api/webhook", bridge(webhookHandler));
 
-  // Vite middleware for development
+  // Dedicated raw body parser for Stripe webhook signature verification
+  app.post("/api/webhook", express.raw({ type: 'application/json' }), bridge(webhookHandler));
+
+  // Vite middleware for development & static fallback for production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
+
+    // Fallback to transform and serve index.html for SPA routes in dev mode
+    app.use(async (req, res, next) => {
+      if (req.originalUrl.startsWith("/api")) {
+        return next();
+      }
+      try {
+        const indexPath = path.resolve(process.cwd(), "index.html");
+        if (fs.existsSync(indexPath)) {
+          let template = fs.readFileSync(indexPath, "utf-8");
+          template = await vite.transformIndexHtml(req.originalUrl, template);
+          res.status(200).set({ "Content-Type": "text/html" }).end(template);
+        } else {
+          next();
+        }
+      } catch (e: any) {
+        vite.ssrFixStacktrace(e);
+        next(e);
+      }
+    });
   } else {
-    app.use(express.static("dist"));
-    app.get("*", (req, res) => {
-      res.sendFile("dist/index.html", { root: "." });
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.use((req, res, next) => {
+      if (req.originalUrl.startsWith("/api")) {
+        return next();
+      }
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Hybrid Zetsu Server running on http://localhost:${PORT}`);
+    console.log(`Zetsu EOE Server running on http://localhost:${PORT}`);
   });
 }
 

@@ -472,7 +472,7 @@ const MarqsEconomyModal: React.FC<MarqsEconomyModalProps> = ({
                             <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest block">Author Profile</span>
                             <h3 className="text-2xl font-black uppercase italic text-white">{profile.authorName}</h3>
                             <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                              Device: {profile.deviceId.substring(0, 16)}... | Cloud Sync: Supabase Active
+                              IP Node: {profile.ipAddress || 'Resolving...'} | Cloud Sync: Supabase Active
                             </p>
                           </div>
                           <button

@@ -1,5 +1,5 @@
 import { getSupabase } from './supabase';
-import { getDeviceId } from './deviceId';
+import { getDeviceId, getStoredIp, setStoredIp } from './deviceId';
 import { UserProfile, UploadedBookRef, MarqsTransaction, MarqsAction, MARQS_EARNING_RATES, MARQS_PER_USD } from '../types';
 import { recordLedgerAction } from './ledger';
 
@@ -18,17 +18,18 @@ export const hashPassword = async (password: string): Promise<string> => {
 };
 
 /**
- * Fetch client IP address with server route and public fallback
+ * Fetch client public IP address with server route and public fallback
  */
-let cachedIp: string = '';
+let cachedIp: string = getStoredIp() || '';
 export const getClientIp = async (): Promise<string> => {
-  if (cachedIp) return cachedIp;
+  if (cachedIp && cachedIp !== '127.0.0.1') return cachedIp;
   try {
     const res = await fetch('/api/client-ip');
     if (res.ok) {
       const data = await res.json();
-      if (data.ip) {
+      if (data.ip && data.ip !== '127.0.0.1') {
         cachedIp = data.ip;
+        setStoredIp(data.ip);
         return data.ip;
       }
     }
@@ -40,36 +41,66 @@ export const getClientIp = async (): Promise<string> => {
       const data = await res.json();
       if (data.ip) {
         cachedIp = data.ip;
+        setStoredIp(data.ip);
         return data.ip;
       }
     }
   } catch {}
 
-  cachedIp = '127.0.0.1';
+  cachedIp = cachedIp || '127.0.0.1';
   return cachedIp;
 };
 
-// Start fetching IP early in background
-getClientIp().catch(() => {});
+const isBrowser = typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+
+// Start resolving public IP immediately and sync with Supabase (browser only)
+if (isBrowser) {
+  getClientIp().then(ip => {
+    if (ip) {
+      const profile = getUserProfile();
+      if (!profile.authorName || profile.authorName === 'Anonymous Archivist') {
+        profile.authorName = ip;
+        profile.ipAddress = ip;
+        saveUserProfile(profile);
+      }
+      syncProfileWithSupabase(profile).catch(() => {});
+    }
+  }).catch(() => {});
+}
 
 const getProfileStorageKey = (deviceId: string) => `${PROFILE_STORAGE_KEY_PREFIX}${deviceId}`;
 
 /**
- * Retrieve user profile from cache, with background Supabase sync
+ * Format default temporary username based on IP address
+ */
+const getDefaultAuthorName = (ip?: string): string => {
+  const effectiveIp = ip || cachedIp || getStoredIp();
+  if (effectiveIp && effectiveIp !== '127.0.0.1') {
+    return effectiveIp;
+  }
+  return 'Anonymous Archivist';
+};
+
+/**
+ * Retrieve user profile from cache, with background Supabase IP sync
  */
 export const getUserProfile = (targetDeviceId?: string): UserProfile => {
   const deviceId = targetDeviceId || getDeviceId();
   const key = getProfileStorageKey(deviceId);
+  const currentIp = cachedIp || getStoredIp() || '';
 
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
+      const isDefaultName = !parsed.authorName || parsed.authorName === 'Anonymous Archivist';
+      const resolvedName = isDefaultName && currentIp ? currentIp : (parsed.authorName || getDefaultAuthorName(currentIp));
+
       return {
         id: parsed.id || deviceId,
         deviceId: parsed.deviceId || deviceId,
-        ipAddress: parsed.ipAddress || cachedIp || '',
-        authorName: parsed.authorName || 'Anonymous Archivist',
+        ipAddress: parsed.ipAddress || currentIp,
+        authorName: resolvedName,
         walletPasswordHash: parsed.walletPasswordHash,
         hasPassword: !!parsed.walletPasswordHash,
         marqsBalance: Number(parsed.marqsBalance ?? parsed.balance ?? 50),
@@ -104,8 +135,8 @@ export const getUserProfile = (targetDeviceId?: string): UserProfile => {
   const initialProfile: UserProfile = {
     id: deviceId,
     deviceId,
-    ipAddress: cachedIp || '',
-    authorName: 'Anonymous Archivist',
+    ipAddress: currentIp,
+    authorName: getDefaultAuthorName(currentIp),
     walletPasswordHash: undefined,
     hasPassword: false,
     marqsBalance: legacyBalance,
@@ -130,14 +161,14 @@ export const getUserProfile = (targetDeviceId?: string): UserProfile => {
     localStorage.setItem(key, JSON.stringify(initialProfile));
   } catch {}
 
-  // Sync to Supabase in background
+  // Sync with Supabase in background to restore previous account state if returning via IP
   syncProfileWithSupabase(initialProfile).catch(() => {});
 
   return initialProfile;
 };
 
 /**
- * Save user profile to local cache and sync to Supabase table `user_profiles`
+ * Save user profile to local cache and sync to Supabase tables
  */
 export const saveUserProfile = (profile: UserProfile): void => {
   const deviceId = profile.deviceId || getDeviceId();
@@ -145,9 +176,16 @@ export const saveUserProfile = (profile: UserProfile): void => {
 
   profile.hasPassword = !!profile.walletPasswordHash;
   profile.lastActive = Date.now();
+  if (!profile.ipAddress && cachedIp) {
+    profile.ipAddress = cachedIp;
+  }
 
   try {
     localStorage.setItem(key, JSON.stringify(profile));
+    // Keep secondary IP key updated for instant recovery on deviceId reset
+    if (profile.ipAddress) {
+      localStorage.setItem(`${PROFILE_STORAGE_KEY_PREFIX}ip_${profile.ipAddress}`, JSON.stringify(profile));
+    }
     // Also keep legacy key synced for backwards compatibility
     localStorage.setItem(`zetsu_marqs_${deviceId}`, JSON.stringify({
       balance: profile.marqsBalance,
@@ -179,7 +217,8 @@ export const saveUserProfile = (profile: UserProfile): void => {
 };
 
 /**
- * Asynchronously synchronizes user profile with Supabase (prioritizing `bookz_user_profiles` with fallback to `user_profiles`)
+ * Synchronizes user profile with Supabase by Public IP Address (with deviceId fallback).
+ * This recovers existing accounts, Marqs balances, and uploaded manuscripts even if browser cache was cleared.
  */
 export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promise<UserProfile> => {
   const profile = localProfile || getUserProfile();
@@ -189,23 +228,49 @@ export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promi
   try {
     const ip = profile.ipAddress || await getClientIp();
     
-    // Check if table exists on Supabase (trying bookz_user_profiles first, then user_profiles)
+    // Check tables in order: bookz_user_profiles first, then user_profiles
     let tableName = 'bookz_user_profiles';
-    let { data: remoteData, error: fetchError } = await supabase
-      .from(tableName)
-      .select('*')
-      .eq('device_id', profile.deviceId)
-      .maybeSingle();
+    let remoteData: any = null;
+    let fetchError: any = null;
 
-    if (fetchError && fetchError.message?.includes('does not exist')) {
-      tableName = 'user_profiles';
-      const fallback = await supabase
+    // 1. Primary lookup by IP Address
+    if (ip && ip !== '127.0.0.1') {
+      const ipQuery = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('ip_address', ip)
+        .order('last_active', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (ipQuery.error && ipQuery.error.message?.includes('does not exist')) {
+        tableName = 'user_profiles';
+        const fallbackIpQuery = await supabase
+          .from(tableName)
+          .select('*')
+          .eq('ip_address', ip)
+          .order('last_active', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        remoteData = fallbackIpQuery.data;
+        fetchError = fallbackIpQuery.error;
+      } else {
+        remoteData = ipQuery.data;
+        fetchError = ipQuery.error;
+      }
+    }
+
+    // 2. Secondary lookup by deviceId if not matched by IP
+    if (!remoteData && profile.deviceId) {
+      const deviceQuery = await supabase
         .from(tableName)
         .select('*')
         .eq('device_id', profile.deviceId)
         .maybeSingle();
-      remoteData = fallback.data;
-      fetchError = fallback.error;
+      
+      if (deviceQuery.data) {
+        remoteData = deviceQuery.data;
+      }
     }
 
     if (fetchError && !fetchError.message?.includes('does not exist')) {
@@ -213,7 +278,7 @@ export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promi
     }
 
     if (remoteData) {
-      // Merge remote data with local data (highest balance and combined books)
+      // Merge remote data with local data (highest balance and combined manuscripts)
       const mergedBooksMap = new Map<string, UploadedBookRef>();
       (profile.uploadedBooks || []).forEach(b => mergedBooksMap.set(b.id, b));
       if (Array.isArray(remoteData.uploaded_books)) {
@@ -222,11 +287,22 @@ export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promi
         });
       }
 
+      // Determine author name: if user configured a custom name, keep it; otherwise use remote name or fallback to IP
+      let resolvedAuthorName = profile.authorName;
+      const isCurrentDefault = !resolvedAuthorName || resolvedAuthorName === 'Anonymous Archivist' || resolvedAuthorName === ip;
+      if (isCurrentDefault) {
+        if (remoteData.author_name && remoteData.author_name !== 'Anonymous Archivist') {
+          resolvedAuthorName = remoteData.author_name;
+        } else if (ip && ip !== '127.0.0.1') {
+          resolvedAuthorName = ip;
+        }
+      }
+
       const mergedProfile: UserProfile = {
-        id: profile.deviceId,
-        deviceId: profile.deviceId,
+        id: profile.deviceId || remoteData.id || `ip_${ip}`,
+        deviceId: profile.deviceId || remoteData.device_id || `dev_${ip}`,
         ipAddress: ip || remoteData.ip_address || '',
-        authorName: profile.authorName !== 'Anonymous Archivist' ? profile.authorName : (remoteData.author_name || profile.authorName),
+        authorName: resolvedAuthorName,
         walletPasswordHash: profile.walletPasswordHash || remoteData.wallet_password_hash || undefined,
         hasPassword: !!(profile.walletPasswordHash || remoteData.wallet_password_hash),
         marqsBalance: Math.max(Number(profile.marqsBalance) || 0, Number(remoteData.marqs_balance) || 0),
@@ -241,15 +317,33 @@ export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promi
       };
 
       // Save locally
-      const key = getProfileStorageKey(profile.deviceId);
+      const key = getProfileStorageKey(mergedProfile.deviceId);
       localStorage.setItem(key, JSON.stringify(mergedProfile));
+      if (ip) {
+        localStorage.setItem(`${PROFILE_STORAGE_KEY_PREFIX}ip_${ip}`, JSON.stringify(mergedProfile));
+      }
 
-      // Push merged back to Supabase
+      // Trigger UI updates
+      window.dispatchEvent(new CustomEvent('zetsu-profile-updated', { detail: mergedProfile }));
+      window.dispatchEvent(new CustomEvent('zetsu-marqs-updated', {
+        detail: {
+          balance: mergedProfile.marqsBalance,
+          totalEarned: mergedProfile.totalEarned,
+          totalSpent: mergedProfile.totalSpent,
+          transactions: mergedProfile.transactions,
+          authorName: mergedProfile.authorName,
+          hasPassword: mergedProfile.hasPassword,
+          uploadedBooks: mergedProfile.uploadedBooks
+        }
+      }));
+
+      // Push merged state back to Supabase
+      const upsertId = remoteData.id || profile.deviceId;
       await supabase
         .from(tableName)
         .upsert({
-          id: profile.deviceId,
-          device_id: profile.deviceId,
+          id: upsertId,
+          device_id: mergedProfile.deviceId,
           ip_address: ip,
           author_name: mergedProfile.authorName,
           wallet_password_hash: mergedProfile.walletPasswordHash || null,
@@ -259,18 +353,23 @@ export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promi
           uploaded_books: mergedProfile.uploadedBooks,
           transactions: mergedProfile.transactions.slice(0, 50),
           last_active: new Date().toISOString()
-        }, { onConflict: 'device_id' });
+        }, { onConflict: 'id' });
 
       return mergedProfile;
     } else {
-      // Insert new row into Supabase
+      // First visit on this IP: Insert new record into Supabase
+      const rowId = profile.deviceId || (ip ? `ip_${ip}` : crypto.randomUUID());
+      const tempAuthorName = (profile.authorName && profile.authorName !== 'Anonymous Archivist') 
+        ? profile.authorName 
+        : (ip || 'Anonymous Archivist');
+
       const { error: insertError } = await supabase
         .from(tableName)
         .insert([{
-          id: profile.deviceId,
+          id: rowId,
           device_id: profile.deviceId,
           ip_address: ip,
-          author_name: profile.authorName,
+          author_name: tempAuthorName,
           wallet_password_hash: profile.walletPasswordHash || null,
           marqs_balance: profile.marqsBalance,
           total_earned: profile.totalEarned,
@@ -293,7 +392,7 @@ export const syncProfileWithSupabase = async (localProfile?: UserProfile): Promi
 };
 
 /**
- * Set or update the wallet password & author name
+ * Set or update the wallet password & author name (transitions user from temp IP to registered custom wallet)
  */
 export const setWalletPassword = async (password: string, authorName?: string): Promise<UserProfile> => {
   const profile = getUserProfile();
@@ -332,17 +431,26 @@ export const verifyWalletPassword = async (password: string): Promise<boolean> =
 export const isWalletUnlocked = (): boolean => {
   const profile = getUserProfile();
   if (!profile.walletPasswordHash) return true; // Unprotected wallet
+  if (typeof sessionStorage === 'undefined') return true;
   return sessionStorage.getItem(WALLET_UNLOCKED_SESSION_KEY) === 'true';
 };
 
 export const unlockWalletSession = (): void => {
-  sessionStorage.setItem(WALLET_UNLOCKED_SESSION_KEY, 'true');
-  window.dispatchEvent(new CustomEvent('zetsu-wallet-unlocked', { detail: true }));
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(WALLET_UNLOCKED_SESSION_KEY, 'true');
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('zetsu-wallet-unlocked', { detail: true }));
+  }
 };
 
 export const lockWalletSession = (): void => {
-  sessionStorage.removeItem(WALLET_UNLOCKED_SESSION_KEY);
-  window.dispatchEvent(new CustomEvent('zetsu-wallet-unlocked', { detail: false }));
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.removeItem(WALLET_UNLOCKED_SESSION_KEY);
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('zetsu-wallet-unlocked', { detail: false }));
+  }
 };
 
 /**
@@ -350,7 +458,7 @@ export const lockWalletSession = (): void => {
  */
 export const setAuthorName = (name: string): UserProfile => {
   const profile = getUserProfile();
-  const cleanName = name.trim() || 'Anonymous Archivist';
+  const cleanName = name.trim() || getDefaultAuthorName(profile.ipAddress);
   const previousName = profile.authorName;
   profile.authorName = cleanName;
   saveUserProfile(profile);
@@ -385,3 +493,4 @@ export const trackAuthorUploadedBook = (book: UploadedBookRef): UserProfile => {
   saveUserProfile(profile);
   return profile;
 };
+
