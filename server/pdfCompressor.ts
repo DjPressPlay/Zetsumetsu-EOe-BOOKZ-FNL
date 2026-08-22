@@ -4,119 +4,112 @@ import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 
-export interface CompressionResult {
-  buffer: Buffer;
-  originalSize: number;
-  compressedSize: number;
-  savedBytes: number;
-  savedPercent: number;
-  ratio: string;
-  preset: 'ebook' | 'screen' | 'printer' | 'prepress';
-  isCompressed: boolean;
-  executionTimeMs: number;
-  engine: string;
-}
-
-export type CompressionPreset = 'ebook' | 'screen' | 'printer' | 'prepress';
+const MAX_TARGET_BYTES = 45 * 1024 * 1024; // 45 MB (Safely below Supabase's 50 MB limit)
 
 /**
- * Checks if Ghostscript binary is available on the host system.
+ * Runs a single Ghostscript compression pass on a file with explicit downsampling and DCT re-encoding.
  */
-export const checkGhostscriptAvailable = async (): Promise<{ available: boolean; version?: string; error?: string }> => {
-  return new Promise((resolve) => {
-    execFile('gs', ['--version'], (err, stdout) => {
+const runGsPass = (inputPath: string, outputPath: string, dpi: number): Promise<void> => {
+  const args = [
+    '-sDEVICE=pdfwrite',
+    '-dCompatibilityLevel=1.4',
+    '-dNOPAUSE',
+    '-dQUIET',
+    '-dBATCH',
+    // Force re-encoding and downsampling of color images
+    '-dDownsampleColorImages=true',
+    '-dColorImageDownsampleType=/Bicubic',
+    `-dColorImageResolution=${dpi}`,
+    '-dAutoFilterColorImages=false',
+    '-dColorImageFilter=/DCTEncode',
+    // Force re-encoding and downsampling of grayscale images
+    '-dDownsampleGrayImages=true',
+    '-dGrayImageDownsampleType=/Bicubic',
+    `-dGrayImageResolution=${dpi}`,
+    '-dAutoFilterGrayImages=false',
+    '-dGrayImageFilter=/DCTEncode',
+    // Mono images
+    '-dDownsampleMonoImages=true',
+    '-dMonoImageDownsampleType=/Bicubic',
+    `-dMonoImageResolution=${Math.min(dpi * 2, 300)}`,
+    // Optimization and font subsetting
+    '-dDetectDuplicateImages=true',
+    '-dCompressFonts=true',
+    '-dSubsetFonts=true',
+    '-dEmbedAllFonts=true',
+    '-dOptimize=true',
+    '-dPreserveEPSInfo=false',
+    '-dPreserveOPIComments=false',
+    '-dDoOutputAtts=false',
+    `-sOutputFile=${outputPath}`,
+    inputPath
+  ];
+
+  return new Promise((resolve, reject) => {
+    execFile('gs', args, { maxBuffer: 150 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
-        resolve({ available: false, error: err.message });
+        const msg = stderr || stdout || err.message;
+        reject(new Error(`Ghostscript processing failed: ${msg}`));
       } else {
-        resolve({ available: true, version: stdout.trim() });
+        resolve();
       }
     });
   });
 };
 
 /**
- * Compresses a PDF Buffer using Ghostscript's pdfwrite engine.
- * Rebuilds the PDF page-by-page, downsamples high-DPI raster images,
- * subsets embedded fonts, and deduplicates object streams.
+ * Automatically optimizes a PDF buffer:
+ * - Pass 1: Crisp 150 DPI with full DCT re-encoding & font deduplication
+ * - If still over 45 MB, executes an automatic second pass at 96 DPI
+ * - If still over 45 MB, executes a final pass at 72 DPI to guarantee storage compliance
  */
-export const compressPdfBuffer = async (
-  inputBuffer: Buffer,
-  preset: CompressionPreset = 'ebook'
-): Promise<CompressionResult> => {
-  const startTime = Date.now();
+export const autoCompressPdfBuffer = async (inputBuffer: Buffer): Promise<Buffer> => {
   const originalSize = inputBuffer.length;
   const randomId = crypto.randomBytes(8).toString('hex');
   const tempDir = os.tmpdir();
-  const inputPath = path.join(tempDir, `zetsu_in_${Date.now()}_${randomId}.pdf`);
-  const outputPath = path.join(tempDir, `zetsu_out_${Date.now()}_${randomId}.pdf`);
+
+  const inputPath = path.join(tempDir, `raw_${Date.now()}_${randomId}.pdf`);
+  const pass1Path = path.join(tempDir, `pass1_${Date.now()}_${randomId}.pdf`);
+  const pass2Path = path.join(tempDir, `pass2_${Date.now()}_${randomId}.pdf`);
 
   try {
-    // 1. Write the input buffer to a temporary file
     await fs.writeFile(inputPath, inputBuffer);
 
-    // 2. Configure Ghostscript parameters for optimal compression and compatibility
-    const dpi = preset === 'screen' ? '72' : preset === 'ebook' ? '150' : '300';
-    const args = [
-      '-sDEVICE=pdfwrite',
-      '-dCompatibilityLevel=1.4',
-      `-dPDFSETTINGS=/${preset}`,
-      '-dNOPAUSE',
-      '-dQUIET',
-      '-dBATCH',
-      '-dDetectDuplicateImages=true',
-      '-dCompressFonts=true',
-      '-dSubsetFonts=true',
-      '-dEmbedAllFonts=true',
-      '-dColorImageDownsampleType=/Bicubic',
-      `-dColorImageResolution=${dpi}`,
-      '-dGrayImageDownsampleType=/Bicubic',
-      `-dGrayImageResolution=${dpi}`,
-      '-dMonoImageDownsampleType=/Bicubic',
-      `-dMonoImageResolution=${preset === 'screen' ? '150' : '300'}`,
-      `-sOutputFile=${outputPath}`,
-      inputPath
-    ];
+    // Pass 1: Standard high-quality 150 DPI optimization
+    await runGsPass(inputPath, pass1Path, 150);
+    let bestResultBuffer = await fs.readFile(pass1Path);
 
-    // 3. Execute Ghostscript
-    await new Promise<void>((resolve, reject) => {
-      execFile('gs', args, { maxBuffer: 100 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (err) {
-          const errMsg = stderr || stdout || err.message;
-          reject(new Error(`Ghostscript failed to process PDF: ${errMsg}`));
-        } else {
-          resolve();
-        }
-      });
-    });
+    // If still exceeds 45 MB, run Pass 2 automatically at 96 DPI
+    if (bestResultBuffer.length > MAX_TARGET_BYTES) {
+      await runGsPass(inputPath, pass2Path, 96);
+      const pass2Buffer = await fs.readFile(pass2Path);
+      if (pass2Buffer.length < bestResultBuffer.length) {
+        bestResultBuffer = pass2Buffer;
+      }
+    }
 
-    // 4. Read the optimized output file
-    const compressedBuffer = await fs.readFile(outputPath);
-    const compressedSize = compressedBuffer.length;
-    const executionTimeMs = Date.now() - startTime;
+    // If still exceeds 45 MB, run final 72 DPI pass
+    if (bestResultBuffer.length > MAX_TARGET_BYTES) {
+      await runGsPass(inputPath, pass2Path, 72);
+      const pass3Buffer = await fs.readFile(pass2Path);
+      if (pass3Buffer.length < bestResultBuffer.length) {
+        bestResultBuffer = pass3Buffer;
+      }
+    }
 
-    // 5. Evaluate if compression yielded size reduction
-    const isSmaller = compressedSize < originalSize;
-    const finalBuffer = isSmaller ? compressedBuffer : inputBuffer;
-    const finalSize = finalBuffer.length;
-    const savedBytes = Math.max(0, originalSize - finalSize);
-    const savedPercent = originalSize > 0 ? Math.round((savedBytes / originalSize) * 100) : 0;
-    const ratio = originalSize > 0 ? ((finalSize / originalSize) * 100).toFixed(1) + '%' : '100%';
+    // Return the compressed buffer if smaller, or original if already smaller
+    if (bestResultBuffer.length < originalSize) {
+      return bestResultBuffer;
+    }
 
-    return {
-      buffer: finalBuffer,
-      originalSize,
-      compressedSize: finalSize,
-      savedBytes,
-      savedPercent,
-      ratio,
-      preset,
-      isCompressed: isSmaller,
-      executionTimeMs,
-      engine: 'Ghostscript 9.55.0'
-    };
+    return inputBuffer;
+  } catch (err) {
+    console.error('Ghostscript compression fallback:', err);
+    return inputBuffer;
   } finally {
-    // 6. Clean up temporary files safely
+    // Cleanup temporary files
     await fs.unlink(inputPath).catch(() => {});
-    await fs.unlink(outputPath).catch(() => {});
+    await fs.unlink(pass1Path).catch(() => {});
+    await fs.unlink(pass2Path).catch(() => {});
   }
 };

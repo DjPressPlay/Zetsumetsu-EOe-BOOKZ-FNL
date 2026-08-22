@@ -1,5 +1,3 @@
-import { PdfCompressionStats } from '../types';
-
 // @ts-ignore
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
 if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
@@ -10,26 +8,15 @@ export interface ProcessedPdfStore {
   thumbnail: string;
   pdfData: ArrayBuffer;
   pageCount: number;
-  compressionStats?: PdfCompressionStats;
 }
 
-export type CompressionPreset = 'ebook' | 'screen' | 'printer' | 'prepress';
-
 /**
- * Sends a PDF ArrayBuffer to the Ghostscript backend compression engine.
- * Ghostscript rebuilds the PDF page-by-page, re-encodes and downsamples raster images,
- * subsets embedded fonts, and optimizes PDF object streams to fit within Supabase's 50MB storage ceiling.
+ * Sends a PDF ArrayBuffer to the automatic server-side Ghostscript optimizer.
+ * Silently rebuilds and compresses large files in the background.
  */
-export const compressPdfWithGhostscript = async (
-  rawBuffer: ArrayBuffer,
-  preset: CompressionPreset = 'ebook',
-  onStatusUpdate?: (msg: string) => void
-): Promise<{ buffer: ArrayBuffer; stats: PdfCompressionStats }> => {
-  const originalSize = rawBuffer.byteLength;
-  onStatusUpdate?.('Rebuilding PDF streams with Ghostscript engine...');
-
+export const compressPdfWithGhostscript = async (rawBuffer: ArrayBuffer): Promise<ArrayBuffer> => {
   try {
-    const response = await fetch(`/api/compress-pdf?preset=${preset}`, {
+    const response = await fetch('/api/compress-pdf', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/pdf',
@@ -38,78 +25,22 @@ export const compressPdfWithGhostscript = async (
     });
 
     if (!response.ok) {
-      const errJson = await response.json().catch(() => null);
-      throw new Error(errJson?.error || `Compression server responded with HTTP ${response.status}`);
+      return rawBuffer;
     }
 
-    const compressedBuffer = await response.arrayBuffer();
-    const headerOrig = response.headers.get('X-Original-Size');
-    const headerComp = response.headers.get('X-Compressed-Size');
-    const headerSaved = response.headers.get('X-Saved-Percent');
-    const headerEngine = response.headers.get('X-Compression-Engine') || 'Ghostscript 9.55.0';
-    const headerExecTime = response.headers.get('X-Execution-Time-Ms');
-
-    const finalOrigSize = headerOrig ? parseInt(headerOrig, 10) : originalSize;
-    const finalCompSize = headerComp ? parseInt(headerComp, 10) : compressedBuffer.byteLength;
-    const savedBytes = Math.max(0, finalOrigSize - finalCompSize);
-    const savedPercent = headerSaved ? parseInt(headerSaved, 10) : Math.round((savedBytes / finalOrigSize) * 100);
-    const ratio = ((finalCompSize / finalOrigSize) * 100).toFixed(1) + '%';
-    const isCompressed = finalCompSize < finalOrigSize;
-
-    const stats: PdfCompressionStats = {
-      originalSize: finalOrigSize,
-      compressedSize: finalCompSize,
-      savedBytes,
-      savedPercent,
-      ratio,
-      preset,
-      isCompressed,
-      executionTimeMs: headerExecTime ? parseInt(headerExecTime, 10) : undefined,
-      engine: headerEngine
-    };
-
-    return {
-      buffer: compressedBuffer,
-      stats
-    };
-  } catch (error: any) {
-    console.warn('Ghostscript server compression fallback to raw buffer:', error);
-    // Fallback: return original buffer with stats indicating uncompressed
-    const stats: PdfCompressionStats = {
-      originalSize,
-      compressedSize: originalSize,
-      savedBytes: 0,
-      savedPercent: 0,
-      ratio: '100%',
-      preset,
-      isCompressed: false,
-      engine: 'Ghostscript (Bypassed / Fallback)'
-    };
-    return {
-      buffer: rawBuffer,
-      stats
-    };
+    return await response.arrayBuffer();
+  } catch (error) {
+    console.warn('Silent compression fallback:', error);
+    return rawBuffer;
   }
 };
 
 /**
- * Full PDF ingestion pipeline:
- * 1. Reads raw file bytes
- * 2. Extracts a 30KB cover thumbnail for instantaneous storefront loading
- * 3. Sends the binary payload through the server-side Ghostscript optimizer
- * 4. Ensures the final file satisfies Supabase storage limits (50 MB)
+ * Standard PDF ingestion pipeline:
+ * 1. Generates the storefront cover thumbnail (< 30KB)
+ * 2. Optimizes PDF binary silently in the background
  */
-export const processPdfForStore = async (
-  file: File,
-  options?: {
-    preset?: CompressionPreset;
-    onStatusUpdate?: (status: string) => void;
-  }
-): Promise<ProcessedPdfStore> => {
-  const preset = options?.preset || 'ebook';
-  const onStatusUpdate = options?.onStatusUpdate;
-
-  onStatusUpdate?.('Analyzing PDF binary and generating cover thumbnail...');
+export const processPdfForStore = async (file: File): Promise<ProcessedPdfStore> => {
   const arrayBuffer = await file.arrayBuffer();
   const bufferForProcessing = arrayBuffer.slice(0);
   
@@ -121,7 +52,7 @@ export const processPdfForStore = async (
     pageCount = pdf.numPages;
     const page = await pdf.getPage(1);
     
-    // Use a scale of 0.6 for the storefront thumbnail to save DB space
+    // Scale 0.6 for the storefront thumbnail
     const viewport = page.getViewport({ scale: 0.6 });
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
@@ -132,7 +63,7 @@ export const processPdfForStore = async (
       await page.render({ canvasContext: context, viewport }).promise;
     }
 
-    // High compression JPEG thumbnail (< 30KB)
+    // High compression JPEG thumbnail
     thumbnail = canvas.toDataURL('image/jpeg', 0.6);
     canvas.width = 0;
     canvas.height = 0;
@@ -140,19 +71,13 @@ export const processPdfForStore = async (
     console.error('Thumbnail generation warning:', renderErr);
   }
 
-  // Optimize full document stream with Ghostscript
-  onStatusUpdate?.('Running Ghostscript optimization (downsampling raster images & font deduplication)...');
-  const { buffer: optimizedBuffer, stats } = await compressPdfWithGhostscript(
-    arrayBuffer,
-    preset,
-    onStatusUpdate
-  );
+  // Optimize full document stream silently in background
+  const optimizedBuffer = await compressPdfWithGhostscript(arrayBuffer);
 
   return {
     thumbnail,
     pdfData: optimizedBuffer,
-    pageCount,
-    compressionStats: stats
+    pageCount
   };
 };
 

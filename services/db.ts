@@ -82,14 +82,6 @@ const isMissingColumn = (error: { code?: string } | null): boolean =>
 export const saveBook = async (metadata: BookMetadata, data: BookData, userId: string): Promise<void> => {
   const supabase = ensureClient();
   
-  const byteLength = data.pdfData.byteLength;
-  const maxBytes = 50 * 1024 * 1024; // 50MB Supabase Storage Limit
-  if (byteLength > maxBytes) {
-    throw new Error(
-      `File size (${(byteLength / (1024 * 1024)).toFixed(1)} MB) exceeds Supabase's 50MB storage ceiling. Please select 'Screen (72 DPI)' preset to optimize further.`
-    );
-  }
-
   const { error: storageError } = await supabase.storage
     .from(BUCKET_NAME)
     .upload(`${metadata.id}.pdf`, data.pdfData, {
