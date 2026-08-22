@@ -48,7 +48,8 @@ export type LedgerActionType =
   | 'comment'
   | 'share'
   | 'buy_copies'
-  | 'boost';
+  | 'boost'
+  | 'post';
 
 export interface LedgerEntry {
   id: string;

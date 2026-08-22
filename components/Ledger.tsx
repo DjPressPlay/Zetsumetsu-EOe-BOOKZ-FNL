@@ -16,9 +16,8 @@ import {
   Mail, 
   ExternalLink, 
   RefreshCw, 
-  Filter, 
-  Globe, 
-  Layers, 
+  Radio,
+  Send,
   Sparkles,
   Zap,
   Activity,
@@ -27,7 +26,14 @@ import {
   Database
 } from 'lucide-react';
 import { LedgerEntry, LedgerActionType } from '../types';
-import { getLedgerEntries, getLedgerStats, recordLedgerAction } from '../services/ledger';
+import { 
+  getLedgerEntries, 
+  getLedgerStats, 
+  recordLedgerAction, 
+  postShortLedgerMessage,
+  subscribeToLedgerUpdates 
+} from '../services/ledger';
+import { getUserProfile } from '../services/userProfile';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import MarqsLogo from './MarqsLogo';
@@ -41,6 +47,15 @@ const ACTION_CONFIG: Record<LedgerActionType, {
   accentColor: string;
   description: string;
 }> = {
+  post: {
+    label: 'Short Post',
+    icon: Radio,
+    badgeBg: 'bg-pink-500/10',
+    badgeBorder: 'border-pink-500/30',
+    badgeText: 'text-pink-400',
+    accentColor: '#ec4899',
+    description: 'Direct Broadcast'
+  },
   join: {
     label: 'Profile / Join',
     icon: UserPlus,
@@ -126,6 +141,7 @@ const ACTION_CONFIG: Record<LedgerActionType, {
 
 const FILTER_OPTIONS: { id: string; label: string; action?: LedgerActionType }[] = [
   { id: 'all', label: 'All Operations' },
+  { id: 'post', label: 'Short Posts', action: 'post' },
   { id: 'read_page', label: 'Read Pages', action: 'read_page' },
   { id: 'upload', label: 'Uploads', action: 'upload' },
   { id: 'view', label: 'Views', action: 'view' },
@@ -152,9 +168,14 @@ const Ledger: React.FC = () => {
   });
   const [livePulse, setLivePulse] = useState(false);
 
+  // Short Post state
+  const [shortPostText, setShortPostText] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
+  const [postSuccess, setPostSuccess] = useState(false);
+
   const loaderRef = useRef<HTMLDivElement>(null);
 
-  // Fetch initial batch
+  // Fetch entries strictly from Supabase
   const fetchEntries = useCallback(async (pageNum: number, filter: string, append: boolean = false) => {
     try {
       if (pageNum === 1) setLoading(true);
@@ -162,7 +183,15 @@ const Ledger: React.FC = () => {
 
       const result = await getLedgerEntries(pageNum, 25, filter);
       
-      setEntries(prev => append ? [...prev, ...result.entries] : result.entries);
+      setEntries(prev => {
+        if (append) {
+          const map = new Map<string, LedgerEntry>();
+          prev.forEach(e => map.set(e.id, e));
+          result.entries.forEach(e => map.set(e.id, e));
+          return Array.from(map.values()).sort((a, b) => b.timestamp - a.timestamp);
+        }
+        return result.entries;
+      });
       setHasMore(result.hasMore);
       
       const statsData = await getLedgerStats();
@@ -172,7 +201,7 @@ const Ledger: React.FC = () => {
         actionsPerMinute: statsData.actionsPerMinute
       });
     } catch (err) {
-      console.error('Failed to load ledger entries:', err);
+      console.error('Failed to load ledger entries from Supabase:', err);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -184,17 +213,15 @@ const Ledger: React.FC = () => {
     fetchEntries(1, activeFilter, false);
   }, [activeFilter, fetchEntries]);
 
-  // Real-time event listener for live activity
+  // Real-time Supabase listener & local window event broadcast
   useEffect(() => {
-    const handleNewEntry = (e: CustomEvent<LedgerEntry>) => {
-      const newEntry = e.detail;
+    const handleIncomingEntry = (newEntry: LedgerEntry) => {
       if (!newEntry) return;
 
       setLivePulse(true);
       setTimeout(() => setLivePulse(false), 1200);
 
       setEntries(prev => {
-        // Prevent duplicate IDs
         if (prev.some(item => item.id === newEntry.id)) return prev;
         if (activeFilter === 'all' || activeFilter === newEntry.action) {
           return [newEntry, ...prev];
@@ -209,9 +236,21 @@ const Ledger: React.FC = () => {
       }));
     };
 
-    window.addEventListener('zetsu-ledger-entry-added' as any, handleNewEntry);
+    // 1. Supabase Postgres Realtime changes subscription
+    const unsubscribeSupabase = subscribeToLedgerUpdates((entry) => {
+      handleIncomingEntry(entry);
+    });
+
+    // 2. Window event for immediate in-tab feedback
+    const handleLocalEvent = (e: CustomEvent<LedgerEntry>) => {
+      handleIncomingEntry(e.detail);
+    };
+
+    window.addEventListener('zetsu-ledger-entry-added' as any, handleLocalEvent);
+
     return () => {
-      window.removeEventListener('zetsu-ledger-entry-added' as any, handleNewEntry);
+      unsubscribeSupabase();
+      window.removeEventListener('zetsu-ledger-entry-added' as any, handleLocalEvent);
     };
   }, [activeFilter]);
 
@@ -220,6 +259,27 @@ const Ledger: React.FC = () => {
     const nextPage = page + 1;
     setPage(nextPage);
     fetchEntries(nextPage, activeFilter, true);
+  };
+
+  // Submit short post to Supabase
+  const handleShortPostSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = shortPostText.trim();
+    if (!text || isPosting) return;
+
+    setIsPosting(true);
+    try {
+      const profile = getUserProfile();
+      const author = profile?.authorName || 'Archivist';
+      await postShortLedgerMessage(text, author, '/ledger');
+      setShortPostText('');
+      setPostSuccess(true);
+      setTimeout(() => setPostSuccess(false), 2500);
+    } catch (err) {
+      console.error('Failed to post to Supabase ledger:', err);
+    } finally {
+      setIsPosting(false);
+    }
   };
 
   // Filter by search query
@@ -265,7 +325,7 @@ const Ledger: React.FC = () => {
             <div className="flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full">
               <span className={`w-2 h-2 rounded-full ${livePulse ? 'bg-emerald-400 scale-125 shadow-[0_0_10px_#10b981]' : 'bg-[#00c2ff] animate-pulse'}`} />
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 font-mono">
-                PUBLIC_APPEND_ONLY_LOG
+                SUPABASE_LIVE_LEDGER
               </span>
             </div>
           </div>
@@ -274,17 +334,17 @@ const Ledger: React.FC = () => {
             <div>
               <div className="flex items-center gap-2.5 mb-2">
                 <span className="px-2 py-0.5 bg-[#00c2ff]/10 border border-[#00c2ff]/30 text-[#00c2ff] text-[8px] font-black uppercase tracking-widest rounded">
-                  LIVING PLATFORM RECORD
+                  DIRECT SUPABASE STORAGE
                 </span>
                 <span className="text-[9px] font-mono text-slate-500 font-bold uppercase tracking-widest">
-                  IMMUTABLE STREAM
+                  IMMUTABLE OPERATIONS STREAM
                 </span>
               </div>
               <h1 className="text-3xl sm:text-5xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
                 THE <span className="text-[#00c2ff]">LEDGER</span>
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 font-medium max-w-2xl mt-3 leading-relaxed">
-                Every reader session, author upload, comment, share, boost, and print fulfillment is written directly to this public append-only index. Each entry acts as a crawlable, permanent link directly back to the active page.
+                Directly synchronized with the Supabase database. Every reader session, short post, author upload, comment, share, boost, and print fulfillment is written directly to Supabase without local browser storage.
               </p>
             </div>
 
@@ -292,7 +352,7 @@ const Ledger: React.FC = () => {
             <div className="grid grid-cols-3 gap-2.5 sm:gap-4 shrink-0">
               <div className="bg-[#0a0f14] border border-white/10 rounded-2xl p-3 sm:p-4 text-center">
                 <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1">
-                  TOTAL LOGGED
+                  SUPABASE TOTAL
                 </span>
                 <span className="text-lg sm:text-2xl font-black font-mono text-white">
                   {stats.totalEntries > 0 ? stats.totalEntries.toLocaleString() : entries.length}
@@ -320,6 +380,68 @@ const Ledger: React.FC = () => {
           </div>
         </div>
 
+        {/* Short Post Input Form */}
+        <div className="bg-[#090d12] border border-[#00c2ff]/30 rounded-2xl p-4 sm:p-5 mb-8 shadow-[0_0_30px_rgba(0,194,255,0.06)]">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Radio size={16} className="text-pink-400 animate-pulse" />
+              <span className="text-xs font-black uppercase tracking-wider text-white">
+                TRANSMIT SHORT POST TO SUPABASE LEDGER
+              </span>
+            </div>
+            <span className="text-[9px] font-mono text-slate-500 uppercase">
+              DIRECT SUPABASE INSERT
+            </span>
+          </div>
+
+          <form onSubmit={handleShortPostSubmit} className="space-y-3">
+            <div className="relative">
+              <textarea
+                value={shortPostText}
+                onChange={(e) => setShortPostText(e.target.value)}
+                maxLength={280}
+                rows={2}
+                placeholder="Write a short update, note, or announcement to append directly to the Supabase Ledger..."
+                className="w-full bg-[#030609] border border-white/10 focus:border-[#00c2ff]/60 rounded-xl p-3 text-xs sm:text-sm font-sans text-white placeholder:text-slate-600 focus:outline-none transition-all resize-none"
+              />
+              <div className="absolute right-3 bottom-3 text-[9px] font-mono text-slate-500">
+                {280 - shortPostText.length} chars
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="text-[9px] font-mono text-slate-500">
+                {postSuccess ? (
+                  <span className="text-emerald-400 font-bold flex items-center gap-1">
+                    <CheckCircle2 size={12} />
+                    SUCCESSFULLY BROADCAST TO SUPABASE LEDGER
+                  </span>
+                ) : (
+                  <span>Short posts are published instantly to the global ledger stream.</span>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={!shortPostText.trim() || isPosting}
+                className="px-5 py-2 bg-[#00c2ff] hover:bg-[#38bdf8] text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(0,194,255,0.2)]"
+              >
+                {isPosting ? (
+                  <>
+                    <RefreshCw size={12} className="animate-spin" />
+                    <span>TRANSMITTING...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={12} />
+                    <span>POST TO SUPABASE</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+
         {/* Filter Chips & Search Bar */}
         <div className="space-y-4 mb-6">
           {/* Search Box */}
@@ -329,7 +451,7 @@ const Ledger: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="FILTER LEDGER BY TITLE, ARCHIVIST, OR PATH (E.G. 'KEVIN', 'READ', 'GUIDES')..."
+              placeholder="FILTER LEDGER BY TITLE, ARCHIVIST, OR PATH (E.G. 'KEVIN', 'READ', 'POST', 'GUIDES')..."
               className="w-full bg-[#0a0f14] border border-white/10 focus:border-[#00c2ff]/60 rounded-2xl py-3 pl-11 pr-10 text-xs font-mono font-bold text-white placeholder:text-slate-600 focus:outline-none transition-all uppercase tracking-wider"
             />
             {searchQuery && (
@@ -369,14 +491,14 @@ const Ledger: React.FC = () => {
             <div className="py-24 text-center space-y-4">
               <div className="w-10 h-10 border-2 border-[#00c2ff]/20 border-t-[#00c2ff] rounded-full animate-spin mx-auto" />
               <p className="text-xs font-mono font-bold uppercase tracking-widest text-slate-500">
-                SYNCHRONIZING BITSTREAM LEDGER...
+                SYNCHRONIZING DIRECTLY WITH SUPABASE LEDGER...
               </p>
             </div>
           ) : filteredEntries.length === 0 ? (
             <div className="py-20 text-center bg-[#0a0f14] border border-white/10 rounded-3xl p-8 space-y-3">
               <Database size={32} className="text-slate-600 mx-auto" />
               <h3 className="text-base font-black uppercase tracking-tight text-white">No Matching Ledger Entries</h3>
-              <p className="text-xs text-slate-500 font-medium">No logged operations matched your filter query.</p>
+              <p className="text-xs text-slate-500 font-medium">No logged operations matched your filter query from Supabase.</p>
               <button 
                 onClick={() => { setActiveFilter('all'); setSearchQuery(''); }}
                 className="mt-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest"
@@ -500,12 +622,12 @@ const Ledger: React.FC = () => {
                 {loadingMore ? (
                   <>
                     <RefreshCw size={14} className="animate-spin" />
-                    <span>FETCHING NEXT HISTORICAL BLOCK...</span>
+                    <span>FETCHING NEXT SUPABASE BLOCK...</span>
                   </>
                 ) : (
                   <>
                     <History size={14} />
-                    <span>LOAD MORE HISTORICAL LEDGER NODES</span>
+                    <span>LOAD MORE HISTORICAL SUPABASE NODES</span>
                   </>
                 )}
               </button>

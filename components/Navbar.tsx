@@ -774,20 +774,6 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                   </button>
                 )}
 
-                {/* The Ledger Link */}
-                <Link
-                  to="/ledger"
-                  className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 md:py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:border-[#00c2ff]/40 text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider rounded-full transition-all shrink-0 active:scale-95 group shadow-xs"
-                  title="The Ledger: Real-time public activity stream & crawlable archive index"
-                >
-                  <span className="relative flex h-2 w-2 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00c2ff] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00c2ff]"></span>
-                  </span>
-                  <span className="hidden sm:inline">THE LEDGER</span>
-                  <span className="sm:hidden">LEDGER</span>
-                </Link>
-
                 {/* Submit Data Button - Always visible with icon and text */}
                 <button 
                   id="nav-submit-btn"
