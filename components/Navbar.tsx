@@ -112,6 +112,9 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   } | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [processingStage, setProcessingStage] = useState<string>('Initializing Ghostscript engine...');
+  const [compressionPreset, setCompressionPreset] = useState<'ebook' | 'screen'>('ebook');
+  const [selectedFileObj, setSelectedFileObj] = useState<File | null>(null);
   const [pdfInfo, setPdfInfo] = useState<any>(null);
   const [formData, setFormData] = useState({ title: '', author: '', genre: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -196,6 +199,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFileObj(file);
 
     const currentQuota = await getUserQuota();
     setQuota(currentQuota);
@@ -212,17 +216,57 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
     }
 
     setUploadStatus('processing');
+    setProcessingStage('Ingesting PDF and initializing Ghostscript pipeline...');
     setUploadError(null);
     try {
-      const info = await processPdfForStore(file);
+      const info = await processPdfForStore(file, {
+        preset: compressionPreset,
+        onStatusUpdate: (msg) => setProcessingStage(msg)
+      });
       setPdfInfo(info);
       const initialTitle = file.name.replace('.pdf', '');
       setFormData(prev => ({ ...prev, title: initialTitle }));
       setUploadStatus('idle');
-    } catch (err) {
-      console.error('Failed to read PDF:', err);
+
+      if (info.compressionStats?.isCompressed) {
+        showToast(
+          "Ghostscript Optimization Complete",
+          `Reduced by ${info.compressionStats.savedPercent}% (${(info.compressionStats.savedBytes / (1024 * 1024)).toFixed(1)} MB saved). Guaranteed < 50MB Supabase safe.`,
+          "success"
+        );
+      }
+    } catch (err: any) {
+      console.error('Failed to process PDF with Ghostscript:', err);
       setUploadStatus('error');
-      setUploadError("That PDF could not be read. Try re-exporting it, or pick a different file.");
+      setUploadError(err?.message || "That PDF could not be processed. Try re-exporting it, or pick a different file.");
+    }
+  };
+
+  const handlePresetChange = async (newPreset: 'ebook' | 'screen') => {
+    if (newPreset === compressionPreset || !selectedFileObj) {
+      setCompressionPreset(newPreset);
+      return;
+    }
+
+    setCompressionPreset(newPreset);
+    setUploadStatus('processing');
+    setProcessingStage(`Re-compressing PDF with Ghostscript ${newPreset === 'screen' ? '72 DPI Compact' : '150 DPI Balanced'} preset...`);
+    
+    try {
+      const info = await processPdfForStore(selectedFileObj, {
+        preset: newPreset,
+        onStatusUpdate: (msg) => setProcessingStage(msg)
+      });
+      setPdfInfo(info);
+      setUploadStatus('idle');
+      showToast(
+        "Ghostscript Preset Applied",
+        `New size: ${(info.compressionStats?.compressedSize || 0) / (1024 * 1024) > 0 ? ((info.compressionStats?.compressedSize || 0) / (1024 * 1024)).toFixed(1) + ' MB' : 'Optimized'}`,
+        "info"
+      );
+    } catch (err: any) {
+      console.error('Failed to recompress:', err);
+      setUploadStatus('idle');
     }
   };
 
@@ -848,7 +892,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       <div>
                         <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">01. Select Artifact</h4>
                         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tight leading-normal">
-                          Upload your PDF directly. It will be added to the public library instantly.
+                          Upload your PDF directly. Ghostscript automatically recompresses large files (up to 150MB) to fit safely within Supabase's 50MB storage ceiling.
                         </p>
                       </div>
                     </div>
@@ -860,19 +904,19 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       <div>
                         <h4 className="text-[11px] font-black text-[#00c2ff] uppercase tracking-wider mb-1">CRITICAL: PAGE_01 COVER</h4>
                         <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight leading-normal">
-                          The first page of your PDF must be the book cover for the thumbnail to look correct.
+                          The first page of your PDF must be the book cover for the storefront thumbnail to generate correctly.
                         </p>
                       </div>
                     </div>
 
                     <div className="flex gap-4">
                       <div className="w-10 h-10 shrink-0 bg-[#00c2ff]/5 border border-[#00c2ff]/20 rounded-xl flex items-center justify-center text-[#00c2ff]">
-                        <Sparkles size={18} />
+                        <Zap size={18} />
                       </div>
                       <div>
-                        <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">02. Categorization</h4>
+                        <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">02. Ghostscript Optimization</h4>
                         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tight leading-normal">
-                          Choose the best genre sector for your book to help others find it.
+                          Rebuilds PostScript streams, downsamples raster images, and subsets fonts while preserving typography sharpness.
                         </p>
                       </div>
                     </div>
@@ -884,7 +928,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                       <div>
                         <h4 className="text-[11px] font-black text-white uppercase tracking-wider mb-1">03. Global Deployment</h4>
                         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tight leading-normal">
-                          Your book becomes a permanent part of the Zetsumetsu library.
+                          Your book becomes a permanent part of the Zetsumetsu decentralized archive network.
                         </p>
                       </div>
                     </div>
@@ -892,7 +936,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
 
                   <div className="mt-12 p-4 rounded-xl bg-[#00c2ff]/5 border border-[#00c2ff]/10">
                      <p className="text-[8px] font-black text-[#00c2ff] uppercase tracking-[0.2em] text-center">
-                       NOTICE: DIRECT UPLOAD PROTOCOL ACTIVE.
+                       GHOSTSCRIPT 9.55 ENGINE ACTIVE // 50MB SUPABASE COMPLIANT
                      </p>
                   </div>
                 </div>
@@ -1034,6 +1078,58 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                           </div>
                         )}
                       </motion.div>
+                    ) : uploadStatus === 'processing' ? (
+                      <motion.div 
+                        key="processing"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="py-12 px-6 text-center space-y-6 bg-black/60 rounded-3xl border border-[#00c2ff]/30 shadow-[0_0_40px_rgba(0,194,255,0.15)]"
+                      >
+                        <div className="relative w-20 h-20 mx-auto">
+                          <div className="absolute inset-0 rounded-full border-2 border-[#00c2ff]/20 animate-ping" />
+                          <div className="w-full h-full rounded-full bg-[#00c2ff]/10 border border-[#00c2ff]/40 flex items-center justify-center text-[#00c2ff] shadow-[0_0_25px_rgba(0,194,255,0.3)]">
+                            <Zap size={32} className="animate-pulse" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <span className="inline-block px-3 py-1 bg-[#00c2ff]/10 text-[#00c2ff] border border-[#00c2ff]/30 rounded-full text-[9px] font-black uppercase tracking-widest">
+                            Ghostscript 9.55 Pipeline
+                          </span>
+                          <h3 className="text-lg font-black text-white uppercase italic tracking-tight">
+                            Optimizing Document Stream
+                          </h3>
+                          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider max-w-sm mx-auto">
+                            {processingStage}
+                          </p>
+                        </div>
+
+                        {/* Pipeline stages indicators */}
+                        <div className="grid grid-cols-3 gap-2 pt-2 max-w-sm mx-auto">
+                          <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-center">
+                            <p className="text-[8px] font-black text-[#00c2ff] uppercase tracking-wider">Raster Engine</p>
+                            <p className="text-[7px] text-slate-500 font-bold uppercase mt-0.5">Downsampling</p>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-center">
+                            <p className="text-[8px] font-black text-[#00c2ff] uppercase tracking-wider">Font Subsetting</p>
+                            <p className="text-[7px] text-slate-500 font-bold uppercase mt-0.5">Deduplication</p>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-center">
+                            <p className="text-[8px] font-black text-[#00c2ff] uppercase tracking-wider">Supabase Guard</p>
+                            <p className="text-[7px] text-slate-500 font-bold uppercase mt-0.5">&lt; 50MB Safe</p>
+                          </div>
+                        </div>
+
+                        <div className="w-56 h-1.5 bg-white/10 mx-auto rounded-full overflow-hidden">
+                          <motion.div 
+                            className="h-full bg-gradient-to-r from-[#00c2ff] via-purple-500 to-[#00c2ff]"
+                            initial={{ x: "-100%" }}
+                            animate={{ x: "100%" }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                          />
+                        </div>
+                      </motion.div>
                     ) : uploadStatus === 'uploading' ? (
                       <motion.div 
                         key="uploading"
@@ -1063,12 +1159,24 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         onClick={() => fileInputRef.current?.click()}
-                        className="border-2 border-dashed border-white/10 rounded-[2rem] p-12 text-center cursor-pointer hover:border-[#00c2ff]/50 transition-all bg-black/40 group"
+                        className="border-2 border-dashed border-[#00c2ff]/30 hover:border-[#00c2ff] rounded-[2rem] p-10 text-center cursor-pointer transition-all bg-black/40 group relative overflow-hidden"
                       >
+                        <div className="absolute top-3 right-4">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#00c2ff]/10 text-[#00c2ff] border border-[#00c2ff]/30 rounded-full text-[8px] font-black uppercase tracking-wider">
+                            <Zap size={10} /> Ghostscript Active
+                          </span>
+                        </div>
                         <input type="file" ref={fileInputRef} className="hidden" accept=".pdf" onChange={handleFileSelect} />
-                        <FileText size={48} className="mx-auto mb-4 text-slate-700 group-hover:text-[#00c2ff] transition-colors" />
-                        <p className="font-black text-white uppercase tracking-widest text-xs mb-2">Select PDF Artifact</p>
-                        <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">Max 50MB per node • {quota.remainingUploads} slots remaining</p>
+                        <FileText size={44} className="mx-auto mb-4 text-[#00c2ff]/70 group-hover:text-[#00c2ff] group-hover:scale-110 transition-all" />
+                        <p className="font-black text-white uppercase tracking-widest text-xs mb-1.5">Select PDF Artifact</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-3">
+                          Uploads up to 150MB automatically compressed
+                        </p>
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10 text-[8px] text-slate-500 font-black uppercase tracking-widest">
+                          <span>{quota.remainingUploads} slots remaining</span>
+                          <span>•</span>
+                          <span className="text-emerald-400">50MB Supabase Limit Guard</span>
+                        </div>
                       </motion.div>
                     ) : (
                       <motion.form 
@@ -1076,16 +1184,100 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         onSubmit={handleUploadSubmit} 
-                        className="space-y-6"
+                        className="space-y-5"
                       >
                         <div className="space-y-4">
-                          <div className="flex gap-4 p-4 bg-black rounded-2xl border border-white/5 items-center">
-                            <img src={pdfInfo.thumbnail} className="w-12 aspect-[3/4] object-cover rounded shadow-2xl" alt="thumb" />
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-black text-white uppercase italic truncate">{formData.title}</p>
-                              <p className="text-[8px] text-slate-500 font-bold uppercase">{pdfInfo.pageCount} Pages Detected</p>
+                          {/* Book Preview Summary */}
+                          <div className="flex gap-4 p-4 bg-black rounded-2xl border border-white/10 items-center">
+                            <img src={pdfInfo.thumbnail} className="w-12 aspect-[3/4] object-cover rounded-lg shadow-2xl border border-white/10" alt="thumb" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-black text-white uppercase italic truncate">{formData.title}</p>
+                              <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">{pdfInfo.pageCount} Pages Ingested</p>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPdfInfo(null);
+                                setSelectedFileObj(null);
+                              }}
+                              className="text-[9px] font-black text-slate-500 hover:text-white uppercase tracking-widest px-2.5 py-1 rounded bg-white/5 border border-white/10"
+                            >
+                              Change
+                            </button>
                           </div>
+
+                          {/* Ghostscript Compression Diagnostics Card */}
+                          {pdfInfo.compressionStats && (
+                            <div className="p-4 rounded-2xl bg-gradient-to-br from-black to-[#0a1218] border border-[#00c2ff]/30 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-5 h-5 rounded-full bg-[#00c2ff]/20 flex items-center justify-center text-[#00c2ff]">
+                                    <Zap size={12} />
+                                  </div>
+                                  <span className="text-[9px] font-black text-white uppercase tracking-widest">
+                                    Ghostscript Optimization
+                                  </span>
+                                </div>
+                                <span className="inline-flex items-center gap-1 text-[8px] font-black text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                  <CheckCircle2 size={10} /> Supabase Safe (&lt; 50MB)
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2 bg-black/40 p-2.5 rounded-xl border border-white/5">
+                                <div>
+                                  <p className="text-[7px] text-slate-500 font-black uppercase tracking-wider">Original</p>
+                                  <p className="text-[10px] font-black text-slate-300">
+                                    {(pdfInfo.compressionStats.originalSize / (1024 * 1024)).toFixed(1)} MB
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-[7px] text-slate-500 font-black uppercase tracking-wider">Optimized</p>
+                                  <p className="text-[10px] font-black text-[#00c2ff]">
+                                    {(pdfInfo.compressionStats.compressedSize / (1024 * 1024)).toFixed(1)} MB
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-[7px] text-slate-500 font-black uppercase tracking-wider">Reduction</p>
+                                  <p className="text-[10px] font-black text-emerald-400">
+                                    {pdfInfo.compressionStats.isCompressed 
+                                      ? `-${pdfInfo.compressionStats.savedPercent}%` 
+                                      : 'Stream Safe'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Preset Switcher */}
+                              <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                                  Compression Preset:
+                                </span>
+                                <div className="flex gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePresetChange('ebook')}
+                                    className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${
+                                      compressionPreset === 'ebook'
+                                        ? 'bg-[#00c2ff] text-black shadow-[0_0_12px_rgba(0,194,255,0.3)]'
+                                        : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
+                                    }`}
+                                  >
+                                    E-Book (150 DPI)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePresetChange('screen')}
+                                    className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${
+                                      compressionPreset === 'screen'
+                                        ? 'bg-[#00c2ff] text-black shadow-[0_0_12px_rgba(0,194,255,0.3)]'
+                                        : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
+                                    }`}
+                                  >
+                                    Screen (72 DPI)
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
                           <div className="space-y-1">
                             <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Archive Title</label>

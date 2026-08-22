@@ -196,3 +196,16 @@ export const BOOK_PRICING: Record<string, { name: string; priceUsd: number; marq
   }
 };
 
+export interface PdfCompressionStats {
+  originalSize: number;
+  compressedSize: number;
+  savedBytes: number;
+  savedPercent: number;
+  ratio: string;
+  preset: 'ebook' | 'screen' | 'printer' | 'prepress';
+  isCompressed: boolean;
+  executionTimeMs?: number;
+  engine: string;
+}
+
+
