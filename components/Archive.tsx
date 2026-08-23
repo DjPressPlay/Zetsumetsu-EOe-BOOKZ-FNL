@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Mail, ArrowLeft, Download, Search, Calendar, Database, AlertCircle } from 'lucide-react';
+import { Mail, ArrowLeft, Download, Search, Calendar, Database, AlertCircle, Send, CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getNewsletterEmails } from '../services/db';
 import Navbar from './Navbar';
@@ -11,6 +11,19 @@ const ArchivePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  
+  // SMTP Dispatch States
+  const [isSendingDigest, setIsSendingDigest] = useState(false);
+  const [digestStatus, setDigestStatus] = useState<{
+    success?: boolean;
+    message?: string;
+    timestamp?: string;
+  } | null>(null);
+  const [smtpConfig, setSmtpConfig] = useState<{
+    isConfigured: boolean;
+    recipient: string;
+    schedule: string;
+  } | null>(null);
 
   useEffect(() => {
     // Hide from search engines
@@ -31,6 +44,20 @@ const ArchivePage: React.FC = () => {
       }
     };
     fetchEmails();
+
+    // Fetch SMTP Status from Express backend
+    const checkSmtp = async () => {
+      try {
+        const res = await fetch('/api/newsletter/smtp-status');
+        if (res.ok) {
+          const data = await res.json();
+          setSmtpConfig(data);
+        }
+      } catch (e) {
+        // Silent catch in case of local offline mock
+      }
+    };
+    checkSmtp();
 
     return () => {
       document.head.removeChild(meta);
@@ -58,12 +85,48 @@ const ArchivePage: React.FC = () => {
     document.body.removeChild(a);
   };
 
+  const triggerManualDigest = async () => {
+    setIsSendingDigest(true);
+    setDigestStatus(null);
+    try {
+      // Pass the current list of emails from the page directly
+      const emailList = emails.map(e => e.email);
+      const res = await fetch('/api/newsletter/send-digest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails: emailList }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDigestStatus({
+          success: true,
+          message: data.message || `Successfully sent digest to ${data.recipient || 'keysub.kevin@gmail.com'}`,
+          timestamp: new Date().toLocaleTimeString(),
+        });
+      } else {
+        setDigestStatus({
+          success: false,
+          message: data.message || data.error || 'Failed to dispatch digest. Check SMTP credentials.',
+          timestamp: new Date().toLocaleTimeString(),
+        });
+      }
+    } catch (err: any) {
+      setDigestStatus({
+        success: false,
+        message: err.message || 'Connection error dispatching email.',
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } finally {
+      setIsSendingDigest(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#020202] text-white">
       <Navbar />
       
       <div className="pt-32 max-w-[1200px] mx-auto px-6 pb-24">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
           <div>
             <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black text-[#00c2ff] uppercase tracking-widest mb-4 hover:translate-x-[-4px] transition-transform">
               <ArrowLeft size={14} />
@@ -77,14 +140,62 @@ const ArchivePage: React.FC = () => {
             </p>
           </div>
 
-          <button 
-            onClick={downloadCSV}
-            className="px-6 py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all"
-          >
-            <Download size={14} />
-            Export CSV
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button 
+              onClick={triggerManualDigest}
+              disabled={isSendingDigest || emails.length === 0}
+              className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${
+                isSendingDigest 
+                  ? 'bg-[#00c2ff]/20 text-[#00c2ff] border border-[#00c2ff]/40 animate-pulse'
+                  : 'bg-[#00c2ff]/10 hover:bg-[#00c2ff]/20 text-[#00c2ff] border border-[#00c2ff]/30 shadow-[0_0_15px_rgba(0,194,255,0.15)]'
+              }`}
+            >
+              {isSendingDigest ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+              {isSendingDigest ? 'Dispatching SMTP...' : 'Send Digest Now'}
+            </button>
+
+            <button 
+              onClick={downloadCSV}
+              className="px-5 py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all"
+            >
+              <Download size={14} />
+              Export CSV
+            </button>
+          </div>
         </div>
+
+        {/* Automated SMTP Schedule Status Bar */}
+        <div className="mb-6 p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] font-mono">
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck size={16} className="text-[#00c2ff]" />
+            <span className="text-slate-300 font-bold uppercase tracking-wider">
+              SMTP Automated Schedule:
+            </span>
+            <span className="text-emerald-400 font-bold">
+              22nd of Every Month (09:00 UTC)
+            </span>
+          </div>
+          <div className="text-slate-400 text-[10px]">
+            Target: <span className="text-white font-bold">{smtpConfig?.recipient || 'keysub.kevin@gmail.com'}</span>
+          </div>
+        </div>
+
+        {/* Digest Response Feedback */}
+        {digestStatus && (
+          <div className={`mb-6 p-4 rounded-2xl border text-xs font-mono flex items-center justify-between gap-4 ${
+            digestStatus.success 
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
+              : 'bg-red-500/10 border-red-500/30 text-red-300'
+          }`}>
+            <div className="flex items-center gap-3">
+              {digestStatus.success ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              <span>{digestStatus.message}</span>
+            </div>
+            {digestStatus.timestamp && (
+              <span className="text-[10px] opacity-70 shrink-0">{digestStatus.timestamp}</span>
+            )}
+          </div>
+        )}
 
         <div className="bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
           <div className="p-6 border-b border-white/5 bg-black/40 flex items-center gap-4">
@@ -177,3 +288,4 @@ const ArchivePage: React.FC = () => {
 };
 
 export default ArchivePage;
+

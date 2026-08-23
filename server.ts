@@ -5,6 +5,11 @@ import { createServer as createViteServer } from "vite";
 import { handler as createCheckoutHandler } from "./netlify/functions/create-checkout-session";
 import { handler as webhookHandler } from "./netlify/functions/webhook";
 import { autoCompressPdfBuffer } from "./server/pdfCompressor";
+import { 
+  initializeMonthlyDigestCron, 
+  sendMonthlyNewsletterDigest, 
+  getSmtpStatus 
+} from "./server/newsletterSmtp";
 
 async function startServer() {
   const app = express();
@@ -75,6 +80,25 @@ async function startServer() {
   // Dedicated raw body parser for Stripe webhook signature verification
   app.post("/api/webhook", express.raw({ type: 'application/json' }), bridge(webhookHandler));
 
+  // Newsletter Monthly Digest SMTP Endpoints
+  app.get("/api/newsletter/smtp-status", (req, res) => {
+    res.json(getSmtpStatus());
+  });
+
+  app.post("/api/newsletter/send-digest", async (req, res) => {
+    try {
+      const customEmails = Array.isArray(req.body?.emails) ? req.body.emails : undefined;
+      const result = await sendMonthlyNewsletterDigest({
+        manual: true,
+        customEmails,
+      });
+      res.json(result);
+    } catch (err: any) {
+      console.error("Manual newsletter digest error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Vite middleware for development & static fallback for production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -112,6 +136,9 @@ async function startServer() {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
+
+  // Initialize automated monthly digest on the 22nd of each month
+  initializeMonthlyDigestCron();
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Zetsu EOE Server running on http://localhost:${PORT}`);
