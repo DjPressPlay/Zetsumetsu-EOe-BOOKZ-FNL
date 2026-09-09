@@ -73,6 +73,12 @@ const CATEGORIES = [
   "OTHER DOCUMENTS"
 ];
 
+const formatFileSize = (bytes?: number): string => {
+  if (!bytes || bytes <= 0) return '0 B';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
@@ -114,6 +120,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [pdfInfo, setPdfInfo] = useState<any>(null);
+  const [compressionProgress, setCompressionProgress] = useState<{ percent: number; statusText: string }>({ percent: 0, statusText: '' });
   const [formData, setFormData] = useState({ title: '', author: '', genre: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -214,8 +221,11 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
 
     setUploadStatus('processing');
     setUploadError(null);
+    setCompressionProgress({ percent: 5, statusText: 'Initializing document processing...' });
     try {
-      const info = await processPdfForStore(file);
+      const info = await processPdfForStore(file, (percent, statusText) => {
+        setCompressionProgress({ percent, statusText });
+      });
       setPdfInfo(info);
       const initialTitle = file.name.replace('.pdf', '');
       const currentProfile = getUserProfile();
@@ -224,7 +234,11 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
         title: initialTitle,
         author: prev.author || currentProfile.authorName || ''
       }));
+
       setUploadStatus('idle');
+      if (info.isCompressed && info.savedPercent > 5) {
+        showToast("PDF Optimized", `Compressed payload by ${info.savedPercent.toFixed(0)}% (${formatFileSize(info.originalSize)} → ${formatFileSize(info.finalSize)}).`, "success");
+      }
     } catch (err: any) {
       console.error('Failed to process PDF:', err);
       setUploadStatus('error');
@@ -1048,17 +1062,31 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="py-20 text-center"
+                        className="py-16 text-center"
                       >
                         <div className="relative w-16 h-16 mx-auto mb-6">
                           <div className="absolute inset-0 rounded-full border-2 border-[#00c2ff]/20 border-t-[#00c2ff] animate-spin" />
                         </div>
                         <h3 className="text-xl font-black text-white italic uppercase">
-                          Processing_Artifact...
+                          Optimizing Artifact...
                         </h3>
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">
-                          Analyzing structure and generating cover
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2 max-w-sm mx-auto px-4">
+                          {compressionProgress.statusText || "Downsampling images & recompressing with Ghostscript"}
                         </p>
+                        {compressionProgress.percent > 0 && (
+                          <div className="mt-6 max-w-xs mx-auto px-4">
+                            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-[#00c2ff] transition-all duration-300 rounded-full"
+                                style={{ width: `${compressionProgress.percent}%` }}
+                              />
+                            </div>
+                            <div className="flex justify-between items-center text-[9px] text-slate-500 font-mono mt-2 uppercase tracking-wider">
+                              <span>Ghostscript Engine</span>
+                              <span className="text-[#00c2ff] font-bold">{compressionProgress.percent}%</span>
+                            </div>
+                          </div>
+                        )}
                       </motion.div>
                     ) : uploadStatus === 'uploading' ? (
                       <motion.div 
@@ -1105,22 +1133,45 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                         className="space-y-5"
                       >
                         <div className="space-y-4">
-                          {/* Book Preview Summary */}
-                          <div className="flex gap-4 p-4 bg-black rounded-2xl border border-white/10 items-center">
-                            <img src={pdfInfo.thumbnail} className="w-12 aspect-[3/4] object-cover rounded-lg shadow-2xl border border-white/10" alt="thumb" />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[11px] font-black text-white uppercase italic truncate">{formData.title}</p>
-                              <p className="text-[8px] text-slate-400 font-bold uppercase">{pdfInfo.pageCount} Pages Detected</p>
+                          {/* Book Preview Summary with Size & Compression Status */}
+                          <div className="p-4 bg-black rounded-2xl border border-white/10 space-y-3">
+                            <div className="flex gap-4 items-center">
+                              <img src={pdfInfo.thumbnail} className="w-12 aspect-[3/4] object-cover rounded-lg shadow-2xl border border-white/10" alt="thumb" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[11px] font-black text-white uppercase italic truncate">{formData.title}</p>
+                                <p className="text-[8px] text-slate-400 font-bold uppercase">{pdfInfo.pageCount} Pages Detected</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPdfInfo(null);
+                                }}
+                                className="text-[9px] font-black text-slate-500 hover:text-white uppercase tracking-widest px-2.5 py-1 rounded bg-white/5 border border-white/10"
+                              >
+                                Change
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPdfInfo(null);
-                              }}
-                              className="text-[9px] font-black text-slate-500 hover:text-white uppercase tracking-widest px-2.5 py-1 rounded bg-white/5 border border-white/10"
-                            >
-                              Change
-                            </button>
+
+                            {/* Telemetry Bar */}
+                            <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[9px] font-mono">
+                              <div className="flex items-center gap-1.5">
+                                <HardDrive size={12} className="text-[#00c2ff]" />
+                                {pdfInfo.isCompressed ? (
+                                  <span className="text-slate-400">
+                                    <span className="line-through text-slate-600">{formatFileSize(pdfInfo.originalSize)}</span>
+                                    {' → '}
+                                    <span className="text-white font-bold">{formatFileSize(pdfInfo.finalSize)}</span>
+                                    {' '}
+                                    <span className="text-emerald-400 font-bold">(-{pdfInfo.savedPercent.toFixed(0)}%)</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-white font-bold">
+                                    {formatFileSize(pdfInfo.finalSize || pdfInfo.originalSize)}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-slate-500 font-bold uppercase tracking-widest text-[8px]">Ready</span>
+                            </div>
                           </div>
 
                           <div className="space-y-1">
@@ -1167,7 +1218,10 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = "", setSearchQuery }) => 
                             </div>
                           </div>
                         </div>
-                        <button type="submit" className="w-full bg-[#00c2ff] text-black py-4 rounded-2xl font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-[0_0_30px_rgba(0,194,255,0.2)] mt-4">
+                        <button 
+                          type="submit" 
+                          className="w-full py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(0,194,255,0.2)] mt-4 bg-[#00c2ff] text-black hover:brightness-110"
+                        >
                           Initiate Deployment
                         </button>
                       </motion.form>

@@ -8,14 +8,136 @@ export interface ProcessedPdfStore {
   thumbnail: string;
   pdfData: ArrayBuffer;
   pageCount: number;
+  originalSize: number;
+  finalSize: number;
+  isCompressed: boolean;
+  savedPercent: number;
+  exceedsSupabaseLimit: boolean;
+  passesRun?: number;
+  compressionError?: string;
+}
+
+export interface GhostscriptCompressionResult {
+  pdfData: ArrayBuffer;
+  originalSize: number;
+  finalSize: number;
+  savedBytes: number;
+  savedPercent: number;
+  isCompressed: boolean;
+  passesRun: number;
+  exceedsSupabaseLimit: boolean;
+  error?: string;
 }
 
 /**
- * Sends a PDF ArrayBuffer to the automatic server-side Ghostscript optimizer.
- * Silently rebuilds and compresses large files in the background.
+ * Compresses large PDF files by slicing them into safe 6MB chunks,
+ * streaming them to the server to bypass Cloud Run's 32MB single HTTP body ceiling,
+ * and running Ghostscript image downsampling and re-encoding on disk.
  */
-export const compressPdfWithGhostscript = async (rawBuffer: ArrayBuffer): Promise<ArrayBuffer> => {
+export const compressPdfChunked = async (
+  rawBuffer: ArrayBuffer,
+  onProgress?: (percent: number, statusText: string) => void
+): Promise<GhostscriptCompressionResult> => {
+  const originalSize = rawBuffer.byteLength;
+  const HARD_SUPABASE_LIMIT = 50 * 1024 * 1024;
+  const CHUNK_SIZE = 6 * 1024 * 1024; // 6 MB safe chunks (comfortably under 32MB)
+
   try {
+    onProgress?.(5, "Initializing compression session...");
+    const startRes = await fetch("/api/compress-chunked/start", { method: "POST" });
+    if (!startRes.ok) throw new Error("Failed to initialize chunked compression session");
+    const { sessionId } = await startRes.json();
+
+    const totalChunks = Math.ceil(originalSize / CHUNK_SIZE);
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(originalSize, start + CHUNK_SIZE);
+      const chunk = rawBuffer.slice(start, end);
+
+      const pct = Math.round(10 + ((i + 1) / totalChunks) * 60); // 10% to 70%
+      onProgress?.(pct, `Streaming chunk ${i + 1} of ${totalChunks}...`);
+
+      const chunkRes = await fetch("/api/compress-chunked/chunk", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/octet-stream",
+          "x-session-id": sessionId,
+          "x-chunk-index": i.toString()
+        },
+        body: chunk
+      });
+
+      if (!chunkRes.ok) {
+        throw new Error(`Chunk upload failed with status ${chunkRes.status}`);
+      }
+    }
+
+    onProgress?.(75, "Downsampling images & recompressing PDF with Ghostscript...");
+    const finishRes = await fetch("/api/compress-chunked/finish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId })
+    });
+
+    if (!finishRes.ok) {
+      throw new Error(`Ghostscript engine returned status ${finishRes.status}`);
+    }
+
+    onProgress?.(95, "Finalizing compressed artifact...");
+    const compressedBuffer = await finishRes.arrayBuffer();
+    const finalSize = compressedBuffer.byteLength;
+    const isCompressed = finishRes.headers.get("x-is-compressed") === "true" || finalSize < originalSize;
+    const savedBytes = Math.max(0, originalSize - finalSize);
+    const savedPercent = originalSize > 0 ? (savedBytes / originalSize) * 100 : 0;
+    const passesRun = Number(finishRes.headers.get("x-passes-run")) || 1;
+    const exceedsSupabaseLimit = finalSize > HARD_SUPABASE_LIMIT;
+
+    onProgress?.(100, "Compression complete");
+
+    return {
+      pdfData: isCompressed ? compressedBuffer : rawBuffer,
+      originalSize,
+      finalSize: isCompressed ? finalSize : originalSize,
+      savedBytes,
+      savedPercent,
+      isCompressed,
+      passesRun,
+      exceedsSupabaseLimit
+    };
+  } catch (err: any) {
+    console.error("Chunked compression error:", err);
+    return {
+      pdfData: rawBuffer,
+      originalSize,
+      finalSize: originalSize,
+      savedBytes: 0,
+      savedPercent: 0,
+      isCompressed: false,
+      passesRun: 0,
+      exceedsSupabaseLimit: originalSize > HARD_SUPABASE_LIMIT,
+      error: err?.message || "Chunked compression failed"
+    };
+  }
+};
+
+/**
+ * Sends a PDF ArrayBuffer to the automatic server-side Ghostscript optimizer.
+ * For files > 20 MB (or if single HTTP request fails), streams in chunks.
+ */
+export const compressPdfWithGhostscript = async (
+  rawBuffer: ArrayBuffer,
+  onProgress?: (percent: number, statusText: string) => void
+): Promise<GhostscriptCompressionResult> => {
+  const originalSize = rawBuffer.byteLength;
+  const HARD_SUPABASE_LIMIT = 50 * 1024 * 1024;
+
+  // For any file larger than 20MB, use the robust chunked streaming pipeline
+  if (originalSize > 20 * 1024 * 1024) {
+    return compressPdfChunked(rawBuffer, onProgress);
+  }
+
+  try {
+    onProgress?.(30, "Optimizing PDF with Ghostscript...");
     const response = await fetch('/api/compress-pdf', {
       method: 'POST',
       headers: {
@@ -25,13 +147,33 @@ export const compressPdfWithGhostscript = async (rawBuffer: ArrayBuffer): Promis
     });
 
     if (!response.ok) {
-      return rawBuffer;
+      // If direct single POST fails (e.g. HTTP 413), fallback to chunked upload
+      return compressPdfChunked(rawBuffer, onProgress);
     }
 
-    return await response.arrayBuffer();
-  } catch (error) {
-    console.warn('Silent compression fallback:', error);
-    return rawBuffer;
+    const compressedBuffer = await response.arrayBuffer();
+    const finalSize = compressedBuffer.byteLength;
+    const isCompressed = response.headers.get('x-is-compressed') === 'true' || finalSize < originalSize;
+    const savedBytes = Math.max(0, originalSize - finalSize);
+    const savedPercent = originalSize > 0 ? (savedBytes / originalSize) * 100 : 0;
+    const passesRun = Number(response.headers.get('x-passes-run')) || (isCompressed ? 1 : 0);
+    const exceedsSupabaseLimit = finalSize > HARD_SUPABASE_LIMIT;
+
+    onProgress?.(100, "Optimization complete");
+
+    return {
+      pdfData: isCompressed ? compressedBuffer : rawBuffer,
+      originalSize,
+      finalSize: isCompressed ? finalSize : originalSize,
+      savedBytes,
+      savedPercent,
+      isCompressed,
+      passesRun,
+      exceedsSupabaseLimit
+    };
+  } catch (error: any) {
+    console.warn('Direct compression fallback to chunked pipeline:', error);
+    return compressPdfChunked(rawBuffer, onProgress);
   }
 };
 
@@ -40,14 +182,19 @@ export const compressPdfWithGhostscript = async (rawBuffer: ArrayBuffer): Promis
  * 1. Generates the storefront cover thumbnail (< 30KB)
  * 2. Optimizes PDF binary silently in the background
  */
-export const processPdfForStore = async (file: File): Promise<ProcessedPdfStore> => {
+export const processPdfForStore = async (
+  file: File,
+  onProgress?: (percent: number, statusText: string) => void
+): Promise<ProcessedPdfStore> => {
   const arrayBuffer = await file.arrayBuffer();
   const bufferForProcessing = arrayBuffer.slice(0);
+  const originalSize = file.size;
   
   let pageCount = 1;
   let thumbnail = '';
 
   try {
+    onProgress?.(3, "Rendering storefront cover thumbnail...");
     const pdf = await pdfjsLib.getDocument({ data: bufferForProcessing }).promise;
     pageCount = pdf.numPages;
     const page = await pdf.getPage(1);
@@ -71,13 +218,20 @@ export const processPdfForStore = async (file: File): Promise<ProcessedPdfStore>
     console.error('Thumbnail generation warning:', renderErr);
   }
 
-  // Optimize full document stream silently in background
-  const optimizedBuffer = await compressPdfWithGhostscript(arrayBuffer);
+  // Optimize document stream in chunks with Ghostscript
+  const compResult = await compressPdfWithGhostscript(arrayBuffer, onProgress);
 
   return {
     thumbnail,
-    pdfData: optimizedBuffer,
-    pageCount
+    pdfData: compResult.pdfData,
+    pageCount,
+    originalSize: compResult.originalSize,
+    finalSize: compResult.finalSize,
+    isCompressed: compResult.isCompressed,
+    savedPercent: compResult.savedPercent,
+    exceedsSupabaseLimit: compResult.exceedsSupabaseLimit,
+    passesRun: compResult.passesRun,
+    compressionError: compResult.error
   };
 };
 

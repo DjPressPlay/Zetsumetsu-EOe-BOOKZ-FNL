@@ -1,10 +1,12 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import os from "os";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { handler as createCheckoutHandler } from "./netlify/functions/create-checkout-session";
 import { handler as webhookHandler } from "./netlify/functions/webhook";
-import { autoCompressPdfBuffer } from "./server/pdfCompressor";
+import { autoCompressPdfBuffer, compressPdfFile } from "./server/pdfCompressor";
 import { 
   initializeMonthlyDigestCron, 
   sendMonthlyNewsletterDigest, 
@@ -16,8 +18,8 @@ async function startServer() {
   const PORT = 3000;
 
   // JSON parser for standard API endpoints
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+  app.use(express.json({ limit: "250mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "250mb" }));
 
   const bridge = (handler: any) => async (req: express.Request, res: express.Response) => {
     const event = {
@@ -50,12 +52,12 @@ async function startServer() {
     res.json({ ip });
   });
 
-  // Ghostscript PDF Automatic Compression Endpoint (Supports files up to 150MB)
+  // Ghostscript PDF Automatic Compression Endpoint (Supports files up to 250MB)
   app.post(
     "/api/compress-pdf",
     express.raw({
       type: ["application/pdf", "application/octet-stream", "application/x-pdf", "*/*"],
-      limit: "150mb"
+      limit: "250mb"
     }),
     async (req, res) => {
       try {
@@ -64,16 +66,110 @@ async function startServer() {
           return res.status(400).json({ error: "Empty or invalid PDF payload received." });
         }
 
-        const optimizedBuffer = await autoCompressPdfBuffer(bodyBuffer);
+        const result = await autoCompressPdfBuffer(bodyBuffer);
         res.setHeader("Content-Type", "application/pdf");
-        return res.status(200).send(optimizedBuffer);
+        res.setHeader("Access-Control-Expose-Headers", "x-original-size, x-compressed-size, x-saved-bytes, x-saved-percent, x-is-compressed, x-passes-run, x-exceeds-supabase-limit");
+        res.setHeader("x-original-size", result.originalSize.toString());
+        res.setHeader("x-compressed-size", result.compressedSize.toString());
+        res.setHeader("x-saved-bytes", result.savedBytes.toString());
+        res.setHeader("x-saved-percent", result.savedPercent.toFixed(1));
+        res.setHeader("x-is-compressed", result.isCompressed ? "true" : "false");
+        res.setHeader("x-passes-run", result.passesRun.toString());
+        res.setHeader("x-exceeds-supabase-limit", result.exceedsSupabaseLimit ? "true" : "false");
+
+        return res.status(200).send(result.buffer);
       } catch (error: any) {
         console.error("PDF compression fallback:", error);
         res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Access-Control-Expose-Headers", "x-compression-error, x-is-compressed");
+        res.setHeader("x-compression-error", error?.message || "Unknown error");
+        res.setHeader("x-is-compressed", "false");
         return res.status(200).send(req.body);
       }
     }
   );
+
+  // --- Chunked Large File Compression Endpoints (Bypasses Cloud Run 32MB single HTTP POST ceiling) ---
+  const activeSessions = new Map<string, { filePath: string; createdAt: number }>();
+
+  // Periodically clean stale sessions (> 30 mins old)
+  setInterval(() => {
+    const now = Date.now();
+    for (const [id, session] of activeSessions.entries()) {
+      if (now - session.createdAt > 30 * 60 * 1000) {
+        fs.unlink(session.filePath, () => {});
+        activeSessions.delete(id);
+      }
+    }
+  }, 10 * 60 * 1000);
+
+  app.post("/api/compress-chunked/start", (req, res) => {
+    const sessionId = crypto.randomUUID();
+    const tempDir = os.tmpdir();
+    const filePath = path.join(tempDir, `chunked_session_${sessionId}.pdf`);
+    // Ensure clean empty file
+    fs.writeFileSync(filePath, Buffer.alloc(0));
+    activeSessions.set(sessionId, { filePath, createdAt: Date.now() });
+    res.json({ sessionId });
+  });
+
+  app.post(
+    "/api/compress-chunked/chunk",
+    express.raw({ type: "*/*", limit: "25mb" }),
+    (req, res) => {
+      const sessionId = req.headers["x-session-id"] as string;
+      if (!sessionId || !activeSessions.has(sessionId)) {
+        return res.status(404).json({ error: "Invalid or expired chunked compression session." });
+      }
+      const session = activeSessions.get(sessionId)!;
+      const chunkBuffer = req.body;
+      if (!chunkBuffer || !(chunkBuffer instanceof Buffer)) {
+        return res.status(400).json({ error: "Missing chunk buffer." });
+      }
+      fs.appendFile(session.filePath, chunkBuffer, (err) => {
+        if (err) {
+          return res.status(500).json({ error: "Failed to write chunk to temporary disk storage." });
+        }
+        res.json({ success: true, chunkSize: chunkBuffer.length });
+      });
+    }
+  );
+
+  app.post("/api/compress-chunked/finish", async (req, res) => {
+    const sessionId = req.body?.sessionId || (req.headers["x-session-id"] as string);
+    if (!sessionId || !activeSessions.has(sessionId)) {
+      return res.status(404).json({ error: "Invalid or expired chunked compression session." });
+    }
+    const session = activeSessions.get(sessionId)!;
+    activeSessions.delete(sessionId);
+
+    try {
+      const compResult = await compressPdfFile(session.filePath);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Access-Control-Expose-Headers", "x-original-size, x-compressed-size, x-saved-bytes, x-saved-percent, x-is-compressed, x-passes-run");
+      res.setHeader("x-original-size", compResult.originalSize.toString());
+      res.setHeader("x-compressed-size", compResult.compressedSize.toString());
+      res.setHeader("x-saved-bytes", compResult.savedBytes.toString());
+      res.setHeader("x-saved-percent", compResult.savedPercent.toFixed(1));
+      res.setHeader("x-is-compressed", compResult.isCompressed ? "true" : "false");
+      res.setHeader("x-passes-run", compResult.passesRun.toString());
+
+      res.sendFile(compResult.outputPath, () => {
+        // Clean up temporary files on disk
+        fs.unlink(session.filePath, () => {});
+        if (compResult.outputPath !== session.filePath) {
+          fs.unlink(compResult.outputPath, () => {});
+        }
+      });
+    } catch (err: any) {
+      console.error("Chunked Ghostscript compression failed:", err);
+      // Fallback: send the reassembled original file
+      res.sendFile(session.filePath, () => {
+        fs.unlink(session.filePath, () => {});
+      });
+    }
+  });
 
   app.post("/api/create-checkout-session", bridge(createCheckoutHandler));
 

@@ -109,7 +109,16 @@ export const saveBook = async (metadata: BookMetadata, data: BookData, userId: s
       upsert: true
     });
 
-  if (storageError) throw storageError;
+  if (storageError) {
+    const msg = storageError.message || '';
+    if (msg.toLowerCase().includes('exceeded the maximum') || (storageError as any).statusCode === 413 || msg.includes('Payload too large')) {
+      const sizeMb = (data.pdfData.byteLength / (1024 * 1024)).toFixed(1);
+      throw new Error(
+        `Supabase Storage limitation reached: file size is ${sizeMb} MB, which exceeds the project's 50 MB bucket limit.`
+      );
+    }
+    throw storageError;
+  }
 
   const { error: dbError } = await supabase
     .from('bookz')
