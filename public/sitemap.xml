@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+  <!-- Core Application Landing & Global Shelf -->
+  <url>
+    <loc>https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- The Immutable Ledger & Audit History -->
+  <url>
+    <loc>https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/#/ledger</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Monthly Newsletter & Digest -->
+  <url>
+    <loc>https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/#/newsletter</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Sector Indexes -->
+  <url>
+    <loc>https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/?sector=guides</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/?sector=fiction</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/?sector=research</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/?sector=reference</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/?sector=art</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/?sector=other</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>

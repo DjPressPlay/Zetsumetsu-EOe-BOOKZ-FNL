@@ -52,6 +52,138 @@ async function startServer() {
     res.json({ ip });
   });
 
+  // Google Search Console Site Verification Endpoint
+  app.get("/google0d69da55f20eb362.html", (req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.status(200).send("google-site-verification: google0d69da55f20eb362.html");
+  });
+
+  // Search Engine Robots.txt Endpoint
+  app.get("/robots.txt", (req, res) => {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    const robotsPath = path.resolve(process.cwd(), "public/robots.txt");
+    if (fs.existsSync(robotsPath)) {
+      res.sendFile(robotsPath);
+    } else {
+      res.status(200).send("User-agent: *\nAllow: /\nDisallow: /archive\nDisallow: /admin/\n\nUser-agent: Googlebot\nAllow: /\nAllow: /sitemap.xml\nAllow: /google0d69da55f20eb362.html\n\nSitemap: https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/sitemap.xml\n");
+    }
+  });
+
+  // Dynamic & Static Sitemap XML Endpoint for Google Search & Web Crawlers
+  app.get("/sitemap.xml", async (req, res) => {
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol || "https";
+    const host = req.get("host") || "ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app";
+    const baseUrl = `${proto}://${host}`;
+
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://jtrdxlqtxjffzqtansqj.supabase.co';
+      const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Q2tAo9bOgcvVW6KUBDQBAA_WTMpLloP';
+      
+      let dynamicBookUrls = "";
+      try {
+        const resp = await fetch(`${supabaseUrl}/rest/v1/bookz?select=id,title,upload_date`, {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`
+          }
+        });
+        if (resp.ok) {
+          const books = await resp.json();
+          if (Array.isArray(books)) {
+            dynamicBookUrls = books.map((b: any) => {
+              const date = b.upload_date ? new Date(b.upload_date).toISOString().split('T')[0] : '2026-10-30';
+              return `
+  <url>
+    <loc>${baseUrl}/#/book/${encodeURIComponent(b.id)}</loc>
+    <lastmod>${date}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/#/read/${encodeURIComponent(b.id)}</loc>
+    <lastmod>${date}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>`;
+            }).join("");
+          }
+        }
+      } catch (err) {
+        console.warn("Dynamic sitemap book lookup warning:", err);
+      }
+
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/#/ledger</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/#/newsletter</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/?sector=guides</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/?sector=fiction</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/?sector=research</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/?sector=reference</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/?sector=art</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/?sector=other</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>${dynamicBookUrls}
+</urlset>`;
+
+      return res.status(200).send(xml);
+    } catch (error) {
+      const fallbackPath = path.resolve(process.cwd(), "public/sitemap.xml");
+      if (fs.existsSync(fallbackPath)) {
+        return res.sendFile(fallbackPath);
+      }
+      return res.status(500).send("Error generating sitemap");
+    }
+  });
+
   // Ghostscript PDF Automatic Compression Endpoint (Supports files up to 250MB)
   app.post(
     "/api/compress-pdf",

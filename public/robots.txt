@@ -1,5 +1,11 @@
 User-agent: *
+Allow: /
 Disallow: /archive
 Disallow: /admin/
+
+User-agent: Googlebot
+Allow: /
+Allow: /sitemap.xml
+Allow: /google0d69da55f20eb362.html
 
 Sitemap: https://ais-pre-evnrqq7qcgyloslwtal5ka-16156198105.us-west2.run.app/sitemap.xml
